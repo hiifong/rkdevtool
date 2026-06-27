@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "rkdevtool",
-        "width": 800,
-        "height": 600
+        "title": "RKDevTool",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1024,
+        "minHeight": 640
       }
     ],
     "security": {
