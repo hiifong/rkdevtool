@@ -1,24 +1,53 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useAppState } from "../../composables/useAppState";
 
 const { logs, clearLogs } = useAppState();
 
+const contentRef = ref<HTMLElement | null>(null);
+const stickToBottom = ref(true);
+
 const levelClass = computed(() => (level: string) => `log-line--${level}`);
+
+function onScroll() {
+  const el = contentRef.value;
+  if (!el) return;
+  stickToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+}
+
+async function scrollToBottom() {
+  await nextTick();
+  const el = contentRef.value;
+  if (!el || !stickToBottom.value) return;
+  el.scrollTop = el.scrollHeight;
+}
+
+watch(
+  () => logs.value.map((entry) => `${entry.id}:${entry.text}`).join("\n"),
+  () => {
+    scrollToBottom();
+  },
+);
+
+function handleClear() {
+  clearLogs();
+  stickToBottom.value = true;
+  scrollToBottom();
+}
 </script>
 
 <template>
   <aside class="log-panel">
     <header class="log-panel__header">
       <span>输出日志</span>
-      <button type="button" class="log-panel__clear" @click="clearLogs">清空</button>
+      <button type="button" class="log-panel__clear" @click="handleClear">清空</button>
     </header>
-    <div class="log-panel__content">
+    <div ref="contentRef" class="log-panel__content" @scroll="onScroll">
       <p
         v-for="entry in logs"
         :key="entry.id"
         class="log-line"
-        :class="levelClass(entry.level)"
+        :class="[levelClass(entry.level), entry.kind === 'progress' && 'log-line--progress']"
       >
         {{ entry.text }}
       </p>
@@ -28,12 +57,15 @@ const levelClass = computed(() => (level: string) => `log-line--${level}`);
 
 <style scoped>
 .log-panel {
+  flex: 0 1 var(--log-panel-width);
   width: var(--log-panel-width);
-  height: 100%;
+  min-width: var(--log-panel-min-width);
+  max-width: var(--log-panel-max-width);
+  min-height: 0;
+  align-self: stretch;
   background: var(--color-log-bg);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
 }
 
 .log-panel__header {
@@ -46,6 +78,7 @@ const levelClass = computed(() => (level: string) => `log-line--${level}`);
   color: #94a3b8;
   font-size: 13px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .log-panel__clear {
@@ -64,20 +97,49 @@ const levelClass = computed(() => (level: string) => `log-line--${level}`);
 
 .log-panel__content {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  scrollbar-gutter: stable;
+}
+
+.log-panel__content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-panel__content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.log-panel__content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 4px;
+}
+
+.log-panel__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.55);
 }
 
 .log-line {
   margin: 0;
+  max-width: 100%;
   font-family: var(--font-family-mono);
   font-size: 12px;
   line-height: 18px;
   color: var(--color-log-text);
-  word-break: break-all;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  flex-shrink: 0;
+}
+
+.log-line--progress {
+  color: #fbbf24;
 }
 
 .log-line--success {

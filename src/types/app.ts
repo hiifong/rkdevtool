@@ -6,6 +6,7 @@ export interface LogEntry {
   id: number;
   level: LogLevel;
   text: string;
+  kind?: "line" | "progress";
 }
 
 export type StorageType =

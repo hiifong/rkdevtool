@@ -1,15 +1,31 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod state;
+mod upgrade_tool;
+
+use state::AppState;
+use upgrade_tool::{
+    download_boot, download_execute, extract_firmware, get_tool_info, is_tool_busy, list_devices,
+    partition_list, read_chip_info, run_action, select_device, upgrade_firmware,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .manage(AppState::default())
+        .invoke_handler(tauri::generate_handler![
+            get_tool_info,
+            list_devices,
+            select_device,
+            partition_list,
+            upgrade_firmware,
+            download_boot,
+            download_execute,
+            extract_firmware,
+            read_chip_info,
+            run_action,
+            is_tool_busy,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

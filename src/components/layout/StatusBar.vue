@@ -2,7 +2,11 @@
 import { computed } from "vue";
 import { useAppState } from "../../composables/useAppState";
 
-const { deviceState, deviceSelector } = useAppState();
+const emit = defineEmits<{
+  deviceChange: [locationId: string];
+}>();
+
+const { deviceState, devices, selectedDeviceId, busy } = useAppState();
 
 const statusLabel = computed(() => {
   switch (deviceState.value) {
@@ -25,6 +29,11 @@ const dotColor = computed(() => {
       return "var(--color-danger)";
   }
 });
+
+function onSelect(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  if (value) emit("deviceChange", value);
+}
 </script>
 
 <template>
@@ -32,9 +41,18 @@ const dotColor = computed(() => {
     <div class="status-bar__left">
       <span class="status-bar__dot" :style="{ background: dotColor }" />
       <span class="status-bar__text">{{ statusLabel }}</span>
+      <span v-if="busy" class="status-bar__busy">执行中…</span>
     </div>
-    <select v-model="deviceSelector" class="status-bar__select">
-      <option>{{ deviceSelector }}</option>
+    <select
+      class="status-bar__select"
+      :value="selectedDeviceId ?? ''"
+      :disabled="devices.length === 0"
+      @change="onSelect"
+    >
+      <option v-if="devices.length === 0" value="">无设备</option>
+      <option v-for="device in devices" :key="device.location_id" :value="device.location_id">
+        {{ device.label }}
+      </option>
     </select>
   </footer>
 </template>
@@ -70,6 +88,11 @@ const dotColor = computed(() => {
   color: var(--color-text-primary);
 }
 
+.status-bar__busy {
+  font-size: 12px;
+  color: var(--color-primary);
+}
+
 .status-bar__select {
   min-width: 280px;
   height: 36px;
@@ -79,5 +102,9 @@ const dotColor = computed(() => {
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-size: 12px;
+}
+
+.status-bar__select:disabled {
+  opacity: 0.6;
 }
 </style>

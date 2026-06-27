@@ -1,44 +1,111 @@
 import { inject, provide, ref, type InjectionKey } from "vue";
 import type { DeviceState, LogEntry, LogLevel, PageId } from "../types/app";
+import type { RockusbDevice, ToolInfo } from "../types/tool";
 
 const APP_STATE_KEY: InjectionKey<ReturnType<typeof createAppState>> = Symbol("app-state");
+
+const PROGRESS_RE = /\d+\s*%/;
+const STEP_DONE_RE = /\b(success|fail(ed)?|成功|失败)\s*$/i;
+const STEP_START_RE = /^(start to|begin)\b/i;
+
+function isProgressLine(text: string): boolean {
+  const t = text.trim();
+  if (STEP_DONE_RE.test(t) || STEP_START_RE.test(t)) {
+    return false;
+  }
+  return PROGRESS_RE.test(t) || t.endsWith("...") || /progress/i.test(t);
+}
+
+function shouldUpdateLastLine(last: LogEntry, next: string, update: boolean): boolean {
+  if (!isProgressLine(next)) return false;
+  if (last.kind !== "progress" && !isProgressLine(last.text)) return false;
+  if (update) return true;
+
+  const normalize = (value: string) =>
+    value.trim().replace(/\.+$/, "").toLowerCase();
+  const lastBase = normalize(last.text);
+  const nextBase = normalize(next);
+  return lastBase.startsWith(nextBase) || nextBase.startsWith(lastBase);
+}
 
 let logId = 0;
 
 function createAppState() {
   const activePage = ref<PageId>("download");
-  const deviceState = ref<DeviceState>("connected");
-  const deviceSelector = ref("1-11-3-1-1-3 : MASKROM");
-  const logs = ref<LogEntry[]>([
-    { id: ++logId, level: "success", text: "下载固件成功" },
-    { id: ++logId, level: "default", text: "下载固件开始" },
-    { id: ++logId, level: "default", text: "准备IDB开始" },
-    { id: ++logId, level: "default", text: "准备IDB成功" },
-    { id: ++logId, level: "default", text: "下载IDB开始" },
-    { id: ++logId, level: "default", text: "下载IDB成功" },
-    { id: ++logId, level: "default", text: "测试设备开始" },
-    { id: ++logId, level: "default", text: "测试设备成功" },
-    { id: ++logId, level: "default", text: "校验芯片开始" },
-    { id: ++logId, level: "default", text: "校验芯片成功" },
-    { id: ++logId, level: "default", text: "获取FlashInfo开始" },
-    { id: ++logId, level: "default", text: "获取FlashInfo成功" },
-  ]);
+  const deviceState = ref<DeviceState>("disconnected");
+  const devices = ref<RockusbDevice[]>([]);
+  const selectedDeviceId = ref<string | null>(null);
+  const toolInfo = ref<ToolInfo | null>(null);
+  const logs = ref<LogEntry[]>([]);
+  const busy = ref(false);
 
-  function appendLog(text: string, level: LogLevel = "default") {
-    logs.value.unshift({ id: ++logId, level, text });
+  const deviceSelector = ref("");
+
+  function appendLog(text: string, level: LogLevel = "default", update = false) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const last = logs.value[logs.value.length - 1];
+    const progress = isProgressLine(trimmed);
+
+    if (last && shouldUpdateLastLine(last, trimmed, update)) {
+      logs.value[logs.value.length - 1] = {
+        ...last,
+        text: trimmed,
+        level,
+        kind: "progress",
+      };
+      logs.value = [...logs.value];
+      return;
+    }
+
+    logs.value.push({
+      id: ++logId,
+      level,
+      text: trimmed,
+      kind: progress ? "progress" : "line",
+    });
   }
 
   function clearLogs() {
     logs.value = [];
   }
 
+  function setDevices(list: RockusbDevice[]) {
+    devices.value = list;
+    if (list.length === 0) {
+      deviceState.value = "disconnected";
+      selectedDeviceId.value = null;
+      deviceSelector.value = "";
+      return;
+    }
+
+    if (!selectedDeviceId.value || !list.some((d) => d.location_id === selectedDeviceId.value)) {
+      selectedDeviceId.value = list[0].location_id;
+    }
+
+    const current = list.find((d) => d.location_id === selectedDeviceId.value) ?? list[0];
+    deviceSelector.value = current.label;
+    deviceState.value = current.mode.toUpperCase().includes("LOADER") ? "loader" : "connected";
+  }
+
+  function setBusy(value: boolean) {
+    busy.value = value;
+  }
+
   return {
     activePage,
     deviceState,
+    devices,
+    selectedDeviceId,
     deviceSelector,
+    toolInfo,
     logs,
+    busy,
     appendLog,
     clearLogs,
+    setDevices,
+    setBusy,
   };
 }
 

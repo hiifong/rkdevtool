@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { provideAppState } from "../../composables/useAppState";
+import { useDevicePoll, useToolBusyPoll } from "../../composables/useDevicePoll";
 import Sidebar from "./Sidebar.vue";
 import LogPanel from "./LogPanel.vue";
 import StatusBar from "./StatusBar.vue";
@@ -9,7 +10,10 @@ import DownloadPage from "../pages/DownloadPage.vue";
 import UpgradePage from "../pages/UpgradePage.vue";
 import AdvancedPage from "../pages/AdvancedPage.vue";
 
-const { activePage } = provideAppState();
+const state = provideAppState();
+const { activePage } = state;
+const { onDeviceChange } = useDevicePoll(2000, state);
+useToolBusyPoll(state);
 
 const pageTitle = computed(() => {
   switch (activePage.value) {
@@ -40,7 +44,7 @@ const pageTitle = computed(() => {
         </div>
       </div>
     </div>
-    <StatusBar />
+    <StatusBar @device-change="onDeviceChange" />
   </div>
 </template>
 
@@ -70,15 +74,17 @@ const pageTitle = computed(() => {
   display: flex;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .left-panel {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  overflow-y: auto;
+  overflow: auto;
 }
 </style>

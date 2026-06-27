@@ -33,7 +33,9 @@
   --sidebar-width: 220px;
   --header-height: 56px;
   --status-bar-height: 56px;
-  --log-panel-width: 360px;
+  --log-panel-min-width: 280px;
+  --log-panel-max-width: 480px;
+  --log-panel-width: clamp(280px, 28vw, 480px);
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 12px;

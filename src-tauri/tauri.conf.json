@@ -26,6 +26,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": [
+      "bin/mac/*",
+      "bin/linux_x86-64/*"
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

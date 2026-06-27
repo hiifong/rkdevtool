@@ -3,10 +3,12 @@ import { ref } from "vue";
 import AppButton from "../ui/AppButton.vue";
 import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
+import { useToolCommand, toolApi } from "../../composables/useToolCommand";
 import { pickFile } from "../../composables/useFilePicker";
 import type { PartitionRow, StorageType } from "../../types/app";
 
-const { appendLog } = useAppState();
+const { appendLog, busy } = useAppState();
+const { run } = useToolCommand();
 
 const storageOptions: StorageType[] = [
   "",
@@ -19,26 +21,28 @@ const storageOptions: StorageType[] = [
   "PCIE",
 ];
 
+const storageIndexMap: Record<string, string> = {
+  FLASH: "1",
+  EMMC: "2",
+  SD: "3",
+  SPINOR: "5",
+  SPINAND: "6",
+  SATA: "9",
+  PCIE: "10",
+};
+
 const forceByAddress = ref(false);
 const selectedRowId = ref(1);
-let nextId = 3;
+let nextId = 2;
 
 const rows = ref<PartitionRow[]>([
   {
     id: 1,
     enabled: true,
     storage: "EMMC",
-    address: "0xCCCCCCCC",
-    name: "Loader",
-    path: "/Users/hiifong/Downloads/MiniLoaderAll.bin",
-  },
-  {
-    id: 2,
-    enabled: true,
-    storage: "EMMC",
     address: "0x00000000",
-    name: "linux",
-    path: "/Users/hiifong/Downloads/rootfs.img",
+    name: "Loader",
+    path: "",
   },
 ]);
 
@@ -62,9 +66,52 @@ async function browsePath(row: PartitionRow) {
   if (path) row.path = path;
 }
 
-function execute() {
-  appendLog("执行开始");
-  appendLog("执行成功", "success");
+async function execute() {
+  try {
+    await run(
+      () =>
+        toolApi.downloadExecute({
+          rows: rows.value.map((row) => ({
+            enabled: row.enabled,
+            storage: row.storage,
+            address: row.address,
+            name: row.name,
+            path: row.path,
+          })),
+          force_by_address: forceByAddress.value,
+        }),
+      "执行",
+    );
+  } catch (err) {
+    appendLog(String(err), "error");
+  }
+}
+
+async function switchStorage() {
+  const row = rows.value.find((r) => r.id === selectedRowId.value);
+  const index = row?.storage ? storageIndexMap[row.storage] : undefined;
+  if (!index) {
+    appendLog("请先选择一行并设置存储类型", "error");
+    return;
+  }
+
+  try {
+    await run(
+      () => toolApi.runAction("切换存储", { start_sector: index }),
+      "切换存储",
+    );
+  } catch (err) {
+    appendLog(String(err), "error");
+  }
+}
+
+async function showPartitionList() {
+  try {
+    const output = await run(() => toolApi.partitionList(), "设备分区表");
+    if (output) appendLog(output, "info");
+  } catch (err) {
+    appendLog(String(err), "error");
+  }
 }
 
 function clearRows() {
@@ -120,16 +167,16 @@ function clearRows() {
     </div>
 
     <div class="toolbar">
-      <span class="toolbar__loader">Loader Ver: 1.11</span>
+      <span class="toolbar__loader">Loader Ver: —</span>
       <div class="toolbar__actions">
         <label class="toolbar__checkbox">
-          <input v-model="forceByAddress" type="checkbox" />
+          <input v-model="forceByAddress" type="checkbox" :disabled="busy" />
           强制按地址写
         </label>
-        <AppButton variant="primary" @click="execute">执行</AppButton>
-        <AppButton>切换</AppButton>
-        <AppButton>设备分区表</AppButton>
-        <AppButton @click="clearRows">清空</AppButton>
+        <AppButton variant="primary" :disabled="busy" @click="execute">执行</AppButton>
+        <AppButton :disabled="busy" @click="switchStorage">切换</AppButton>
+        <AppButton :disabled="busy" @click="showPartitionList">设备分区表</AppButton>
+        <AppButton :disabled="busy" @click="clearRows">清空</AppButton>
       </div>
     </div>
   </div>
@@ -140,10 +187,12 @@ function clearRows() {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  width: 100%;
+  max-width: 648px;
 }
 
 .partition-table {
-  width: 648px;
+  width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   background: var(--color-surface);
@@ -260,7 +309,8 @@ function clearRows() {
   border-radius: var(--border-radius-lg);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  width: 648px;
+  width: 100%;
+  flex-wrap: wrap;
 }
 
 .toolbar__loader {
@@ -272,6 +322,7 @@ function clearRows() {
 .toolbar__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-left: auto;
 }

@@ -1,28 +1,60 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import AppButton from "../ui/AppButton.vue";
 import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
+import { useToolCommand, toolApi } from "../../composables/useToolCommand";
 import { pickFile } from "../../composables/useFilePicker";
 
-const { appendLog } = useAppState();
+const { appendLog, busy, deviceState } = useAppState();
+const { run } = useToolCommand();
 
-const firmwarePath = ref(
-  "/Users/hiifong/Downloads/Luckfox_Pico_Pro_Max_Flash_250607/update.img",
-);
-const firmwareVersion = ref("1.0.00");
-const loaderVersion = ref("1.01");
-const chipInfo = ref("RK3568");
+const firmwarePath = ref("");
+const firmwareVersion = ref("—");
+const loaderVersion = ref("—");
+const chipInfo = ref("—");
 
 async function browseFirmware() {
   const path = await pickFile("选择固件文件");
   if (path) firmwarePath.value = path;
 }
 
-function upgrade() {
-  appendLog("升级固件开始");
-  appendLog("升级固件成功", "success");
+async function refreshChipInfo() {
+  if (deviceState.value !== "loader") {
+    chipInfo.value = "Maskrom 模式下需先下载 Loader 后才能读取";
+    return;
+  }
+
+  try {
+    const output = await toolApi.readChipInfo();
+    const text = output.trim();
+    chipInfo.value = text.includes("Fail") ? "读取失败，请检查设备连接" : text || "—";
+  } catch {
+    chipInfo.value = "读取失败";
+  }
 }
+
+async function upgrade() {
+  if (!firmwarePath.value.trim()) {
+    appendLog("请先选择固件路径", "error");
+    return;
+  }
+
+  try {
+    await run(() => toolApi.upgradeFirmware(firmwarePath.value), "升级固件");
+    appendLog("升级固件成功", "success");
+  } catch (err) {
+    appendLog(String(err), "error");
+  }
+}
+
+onMounted(() => {
+  if (deviceState.value === "loader") {
+    refreshChipInfo();
+  } else {
+    chipInfo.value = "—";
+  }
+});
 </script>
 
 <template>
@@ -35,7 +67,7 @@ function upgrade() {
         placeholder="输入或选择固件路径"
         @browse="browseFirmware"
       />
-      <AppButton variant="primary" @click="upgrade">升级</AppButton>
+      <AppButton variant="primary" :disabled="busy" @click="upgrade">升级</AppButton>
     </div>
 
     <div class="info-card">
@@ -51,6 +83,7 @@ function upgrade() {
         <span class="info-card__label">芯片信息</span>
         <input v-model="chipInfo" class="info-card__value" readonly />
       </div>
+      <AppButton size="sm" :disabled="busy" @click="refreshChipInfo">刷新芯片信息</AppButton>
     </div>
   </div>
 </template>
@@ -60,7 +93,8 @@ function upgrade() {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  width: 648px;
+  width: 100%;
+  max-width: 648px;
 }
 
 .firmware-row {
