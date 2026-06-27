@@ -1,0 +1,75 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "meta": {
+    "name": "RKDevTool Design System",
+    "version": "1.0.0",
+    "platform": ["macOS", "Linux"],
+    "framework": "Tauri 2 + Vue 3",
+    "penpotFile": "https://design.f.style/#/workspace?team-id=774610b3-e050-8154-8008-3d2d27034751&file-id=03b3fb27-3644-815f-8008-3d81e9c57437&page-id=03b3fb27-3644-815f-8008-3d81e9c57438"
+  },
+  "color": {
+    "primary": { "$value": "#2563EB", "$type": "color" },
+    "primary-hover": { "$value": "#1D4ED8", "$type": "color" },
+    "primary-light": { "$value": "#DBEAFE", "$type": "color" },
+    "success": { "$value": "#10B981", "$type": "color" },
+    "success-light": { "$value": "#D1FAE5", "$type": "color" },
+    "warning": { "$value": "#F59E0B", "$type": "color" },
+    "danger": { "$value": "#EF4444", "$type": "color" },
+    "danger-light": { "$value": "#FEE2E2", "$type": "color" },
+    "bg": { "$value": "#F1F5F9", "$type": "color" },
+    "surface": { "$value": "#FFFFFF", "$type": "color" },
+    "surface-hover": { "$value": "#F8FAFC", "$type": "color" },
+    "border": { "$value": "#E2E8F0", "$type": "color" },
+    "border-strong": { "$value": "#CBD5E1", "$type": "color" },
+    "text-primary": { "$value": "#0F172A", "$type": "color" },
+    "text-secondary": { "$value": "#64748B", "$type": "color" },
+    "text-muted": { "$value": "#94A3B8", "$type": "color" },
+    "sidebar": { "$value": "#1E293B", "$type": "color" },
+    "sidebar-hover": { "$value": "#334155", "$type": "color" },
+    "sidebar-active": { "$value": "#2563EB", "$type": "color" },
+    "log-bg": { "$value": "#0F172A", "$type": "color" },
+    "log-text": { "$value": "#E2E8F0", "$type": "color" },
+    "log-success": { "$value": "#34D399", "$type": "color" },
+    "log-info": { "$value": "#60A5FA", "$type": "color" },
+    "table-header": { "$value": "#F8FAFC", "$type": "color" },
+    "table-row-selected": { "$value": "#ECFDF5", "$type": "color" },
+    "table-row-selected-border": { "$value": "#10B981", "$type": "color" }
+  },
+  "dimension": {
+    "window-width": { "$value": "1280px", "$type": "dimension" },
+    "window-height": { "$value": "800px", "$type": "dimension" },
+    "sidebar-width": { "$value": "220px", "$type": "dimension" },
+    "header-height": { "$value": "56px", "$type": "dimension" },
+    "status-bar-height": { "$value": "56px", "$type": "dimension" },
+    "log-panel-width": { "$value": "360px", "$type": "dimension" },
+    "content-panel-width": { "$value": "700px", "$type": "dimension" },
+    "border-radius-sm": { "$value": "4px", "$type": "dimension" },
+    "border-radius-md": { "$value": "8px", "$type": "dimension" },
+    "border-radius-lg": { "$value": "12px", "$type": "dimension" }
+  },
+  "spacing": {
+    "xs": { "$value": "4px", "$type": "spacing" },
+    "sm": { "$value": "8px", "$type": "spacing" },
+    "md": { "$value": "12px", "$type": "spacing" },
+    "lg": { "$value": "16px", "$type": "spacing" },
+    "xl": { "$value": "20px", "$type": "spacing" },
+    "2xl": { "$value": "24px", "$type": "spacing" }
+  },
+  "typography": {
+    "font-family": {
+      "$value": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+      "$type": "fontFamily"
+    },
+    "font-family-mono": {
+      "$value": "JetBrains Mono, SF Mono, Menlo, Consolas, monospace",
+      "$type": "fontFamily"
+    },
+    "heading-lg": { "$value": { "fontSize": "20px", "fontWeight": "600", "lineHeight": "28px" }, "$type": "typography" },
+    "heading-md": { "$value": { "fontSize": "18px", "fontWeight": "600", "lineHeight": "24px" }, "$type": "typography" },
+    "body-md": { "$value": { "fontSize": "14px", "fontWeight": "400", "lineHeight": "20px" }, "$type": "typography" },
+    "body-sm": { "$value": { "fontSize": "12px", "fontWeight": "400", "lineHeight": "16px" }, "$type": "typography" },
+    "label": { "$value": { "fontSize": "13px", "fontWeight": "600", "lineHeight": "18px" }, "$type": "typography" },
+    "caption": { "$value": { "fontSize": "11px", "fontWeight": "400", "lineHeight": "14px" }, "$type": "typography" },
+    "log": { "$value": { "fontSize": "12px", "fontWeight": "400", "lineHeight": "18px", "fontFamily": "JetBrains Mono" }, "$type": "typography" }
+  }
+}

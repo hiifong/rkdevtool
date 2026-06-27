@@ -1,0 +1,89 @@
+{
+  "penpotUrl": "https://design.f.style/#/workspace?team-id=774610b3-e050-8154-8008-3d2d27034751&file-id=03b3fb27-3644-815f-8008-3d81e9c57437&page-id=03b3fb27-3644-815f-8008-3d81e9c57438",
+  "fileId": "03b3fb27-3644-815f-8008-3d81e9c57437",
+  "pageId": "03b3fb27-3644-815f-8008-3d81e9c57438",
+  "teamId": "774610b3-e050-8154-8008-3d2d27034751",
+  "lastUpdated": "2026-06-27",
+  "lastSyncedFrom": "penpot",
+  "status": "completed",
+  "consistencyRules": {
+    "appLayout": {
+      "structure": "App(column) > AppBody(row: Sidebar + MainArea) + StatusBar",
+      "appSize": "1280x800",
+      "bodyHeight": 744,
+      "statusBarHeight": 56
+    },
+    "statusBar": {
+      "fullWidth": true,
+      "justifyContent": "space-between",
+      "leftText": "发现一个 MASKROM 设备",
+      "rightText": "1-11-3-1-1-3 : MASKROM"
+    },
+    "sidebar": {
+      "navItemSize": "188x40",
+      "navColumnGap": 12,
+      "iconSize": 8,
+      "versionCentered": true,
+      "bottomSpacer": "Sidebar Spacer"
+    },
+    "leftPanel": {
+      "rowGap": 24,
+      "padding": 24,
+      "contentWidth": 652,
+      "clipContent": false
+    },
+    "partitionTable": {
+      "width": 648,
+      "height": 184,
+      "headerHeight": 40,
+      "dataRowHeight": 52,
+      "cellHeight": 32,
+      "columnGap": 6,
+      "rowPadding": { "horizontal": 12, "vertical": 10 },
+      "clipContent": false,
+      "columns": [26, 26, 68, 88, 56, 324],
+      "pathColumnIncludesBrowse": true
+    },
+    "browseButton": {
+      "table": "32x28",
+      "inline": "36x36",
+      "label": "..."
+    },
+    "rowFlex": "use columnGap not rowGap"
+  },
+  "boards": [
+    {
+      "name": "App Shell - 下载镜像",
+      "id": "e7958f3e-a224-8008-8008-3d82aaff6da8",
+      "position": { "x": 0, "y": 0 },
+      "size": { "width": 1280, "height": 800 },
+      "status": "completed",
+      "exportCss": "design/exports/download-page.css"
+    },
+    {
+      "name": "App Shell - 升级固件",
+      "id": "a4e66f39-3587-806c-8008-3d83ab284523",
+      "position": { "x": 0, "y": 840 },
+      "size": { "width": 1280, "height": 800 },
+      "status": "completed",
+      "exportCss": "design/exports/upgrade-page.css"
+    },
+    {
+      "name": "App Shell - 高级功能",
+      "id": "a4e66f39-3587-806c-8008-3d83be7c0f6c",
+      "position": { "x": 0, "y": 1680 },
+      "size": { "width": 1280, "height": 800 },
+      "status": "completed",
+      "exportCss": "design/exports/advanced-page.css"
+    }
+  ],
+  "libraryColors": 26,
+  "localFiles": {
+    "tokens": "design/tokens/design-tokens.json",
+    "cssVariables": "design/tokens/variables.css",
+    "pageSpec": "design/spec/pages.json",
+    "components": "design/components/components.json",
+    "exports": "design/exports/",
+    "references": "design/references/"
+  }
+}

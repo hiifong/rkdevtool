@@ -1,0 +1,178 @@
+{
+  "Button": {
+    "variants": {
+      "primary": {
+        "background": "{color.primary}",
+        "color": "#FFFFFF",
+        "borderRadius": "{dimension.border-radius-md}",
+        "height": "36px",
+        "paddingX": "{spacing.lg}",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "hover": { "background": "{color.primary-hover}" }
+      },
+      "secondary": {
+        "background": "{color.surface}",
+        "color": "{color.text-primary}",
+        "border": "1px solid {color.border}",
+        "borderRadius": "{dimension.border-radius-md}",
+        "height": "36px",
+        "paddingX": "{spacing.lg}",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "hover": { "background": "{color.surface-hover}" }
+      },
+      "destructive": {
+        "background": "{color.surface}",
+        "color": "{color.danger}",
+        "border": "1px solid {color.danger-light}",
+        "borderRadius": "{dimension.border-radius-md}",
+        "height": "36px",
+        "paddingX": "{spacing.lg}",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "hover": { "background": "{color.danger-light}" }
+      }
+    }
+  },
+  "NavItem": {
+    "width": "188px",
+    "height": "40px",
+    "borderRadius": "{dimension.border-radius-md}",
+    "paddingX": "{spacing.md}",
+    "paddingY": "10px",
+    "columnGap": "{spacing.md}",
+    "iconSize": "8px",
+    "iconBorderRadius": "4px",
+    "fontSize": "13px",
+    "states": {
+      "default": { "background": "transparent", "color": "#CBD5E1", "iconColor": "#64748B" },
+      "active": { "background": "{color.sidebar-active}", "color": "#FFFFFF", "iconColor": "#FFFFFF", "fontWeight": "600" },
+      "hover": { "background": "{color.sidebar-hover}" }
+    }
+  },
+  "Input": {
+    "height": "36px",
+    "borderRadius": "{dimension.border-radius-md}",
+    "border": "1px solid {color.border}",
+    "background": "{color.surface}",
+    "paddingX": "{spacing.md}",
+    "fontSize": "13px",
+    "focusBorder": "{color.primary}"
+  },
+  "FilePathInput": {
+    "extends": "Input",
+    "suffixButton": { "type": "icon-button", "icon": "folder-open", "size": "28px" }
+  },
+  "DataTable": {
+    "width": "648px",
+    "headerBackground": "{color.table-header}",
+    "headerHeight": "40px",
+    "dataRowHeight": "52px",
+    "cellHeight": "32px",
+    "rowPaddingX": "12px",
+    "rowPaddingY": "10px",
+    "columnGap": "6px",
+    "clipContent": false,
+    "borderRadius": "{dimension.border-radius-lg}",
+    "border": "1px solid {color.border}",
+    "selectedRow": {
+      "background": "{color.table-row-selected}",
+      "borderLeft": "2px solid {color.table-row-selected-border}"
+    },
+    "columnAlign": {
+      "index": "center",
+      "checkbox": "center",
+      "default": "start"
+    }
+  },
+  "LogPanel": {
+    "width": "{dimension.log-panel-width}",
+    "background": "{color.log-bg}",
+    "headerBackground": "#1E293B",
+    "headerHeight": "44px",
+    "fontFamily": "{typography.font-family-mono}",
+    "fontSize": "12px",
+    "lineHeight": "18px"
+  },
+  "StatusBar": {
+    "height": "{dimension.status-bar-height}",
+    "background": "{color.surface}",
+    "borderTop": "1px solid {color.border}",
+    "statusDot": { "size": "10px", "borderRadius": "50%" }
+  },
+  "BrowseButton": {
+    "variants": {
+      "table": {
+        "width": "32px",
+        "height": "28px"
+      },
+      "inline": {
+        "width": "36px",
+        "height": "36px"
+      }
+    },
+    "borderRadius": "{dimension.border-radius-md}",
+    "border": "1px solid {color.border}",
+    "background": "{color.surface}",
+    "label": "...",
+    "fontSize": "12px",
+    "fontWeight": "600",
+    "textAlign": "center",
+    "justifyContent": "center",
+    "alignItems": "center"
+  },
+  "FilePathWithBrowse": {
+    "layout": "row",
+    "justifyContent": "space-between",
+    "alignItems": "center",
+    "pathAlign": "start",
+    "browseAlign": "end",
+    "browseVariant": "table"
+  },
+  "StorageSelect": {
+    "width": "64px",
+    "height": "28px",
+    "borderRadius": "{dimension.border-radius-md}",
+    "border": "1px solid {color.border}",
+    "background": "{color.surface}",
+    "paddingX": "6px",
+    "fontSize": "11px",
+    "options": ["", "FLASH", "EMMC", "SD", "SPINOR", "SPINAND", "SATA", "PCIE"],
+    "suffixIcon": "chevron-down",
+    "suffixIconChar": "▾"
+  },
+  "ActionButton": {
+    "width": "148px",
+    "height": "40px",
+    "borderRadius": "{dimension.border-radius-md}",
+    "border": "1px solid {color.border}",
+    "background": "{color.surface}",
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "textAlign": "center",
+    "justifyContent": "center",
+    "alignItems": "center",
+    "hover": { "background": "{color.surface-hover}", "borderColor": "{color.border-strong}" },
+    "active": { "borderColor": "{color.primary}", "background": "{color.primary-light}" }
+  },
+  "Toast": {
+    "borderRadius": "{dimension.border-radius-lg}",
+    "padding": "{spacing.lg}",
+    "shadow": "0 4px 12px rgba(0,0,0,0.15)",
+    "variants": {
+      "success": { "icon": "check-circle", "color": "{color.success}" },
+      "error": { "icon": "x-circle", "color": "{color.danger}" },
+      "info": { "icon": "info", "color": "{color.primary}" }
+    }
+  }
+}
