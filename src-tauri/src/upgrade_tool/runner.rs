@@ -636,8 +636,7 @@ fn wait_for_pty_child(
     let start = Instant::now();
     loop {
         match child.try_wait().map_err(|e| e.to_string())? {
-            Some(Ok(status)) => return Ok(status.success()),
-            Some(Err(e)) => return Err(e.to_string()),
+            Some(status) => return Ok(status.success()),
             None if start.elapsed() >= timeout => {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -739,7 +738,7 @@ fn try_spawn_with_pty(
     let reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
 
     Ok(SpawnedTool::Pty {
-        child: Box::new(child),
+        child,
         reader: Box::new(reader),
     })
 }
