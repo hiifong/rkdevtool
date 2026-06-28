@@ -600,12 +600,31 @@ fn shell_join(program: &Path, args: &[String]) -> String {
 
 fn tool_argv(device_id: Option<&str>, args: &[String]) -> Vec<String> {
     let mut tool_args = Vec::with_capacity(args.len() + 2);
-    if let Some(id) = device_id {
+    if let Some(id) = device_id.filter(|id| !id.is_empty()) {
         tool_args.push(String::from("-s"));
         tool_args.push(id.to_string());
     }
     tool_args.extend(args.iter().cloned());
     tool_args
+}
+
+fn device_arg_for_tool(state: &State<'_, AppState>, selected: Option<String>) -> Option<String> {
+    pick_device_arg(
+        state
+            .last_devices
+            .lock()
+            .map(|devices| devices.len())
+            .unwrap_or(0),
+        selected,
+    )
+}
+
+fn pick_device_arg(device_count: usize, selected: Option<String>) -> Option<String> {
+    if device_count <= 1 {
+        None
+    } else {
+        selected
+    }
 }
 
 #[cfg(windows)]
@@ -621,36 +640,9 @@ enum SpawnedTool {
         stdout: std::process::ChildStdout,
         stderr: Option<std::process::ChildStderr>,
     },
-    #[cfg(windows)]
-    Pty {
-        child: Box<dyn portable_pty::Child + Send + Sync>,
-        reader: Box<dyn Read + Send>,
-    },
 }
 
-#[cfg(windows)]
-fn wait_for_pty_child(
-    child: &mut dyn portable_pty::Child,
-    timeout: Duration,
-) -> Result<bool, String> {
-    let start = Instant::now();
-    loop {
-        match child.try_wait().map_err(|e| e.to_string())? {
-            Some(status) => return Ok(status.success()),
-            None if start.elapsed() >= timeout => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(format!(
-                    "操作超时（{} 秒），请重新进入 Maskrom 并检查 USB 连接后重试",
-                    timeout.as_secs()
-                ));
-            }
-            None => thread::sleep(Duration::from_millis(200)),
-        }
-    }
-}
-
-/// 通过 PTY 启动 upgrade_tool，避免 pipe 模式下 stdout 全缓冲导致日志延迟。
+/// Unix 用 script PTY 实时输出；Windows 用 pipe（ConPTY 会丢失输出且中文路径易失败）。
 fn spawn_tool_child(
     tool_path: &Path,
     work_dir: &Path,
@@ -661,11 +653,6 @@ fn spawn_tool_child(
 
     #[cfg(unix)]
     if let Ok(spawned) = try_spawn_with_script(tool_path, work_dir, &tool_args) {
-        return Ok(spawned);
-    }
-
-    #[cfg(windows)]
-    if let Ok(spawned) = try_spawn_with_pty(tool_path, work_dir, &tool_args) {
         return Ok(spawned);
     }
 
@@ -708,41 +695,6 @@ fn try_spawn_with_script(
     })
 }
 
-#[cfg(windows)]
-fn try_spawn_with_pty(
-    tool_path: &Path,
-    work_dir: &Path,
-    tool_args: &[String],
-) -> Result<SpawnedTool, String> {
-    use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows: 24,
-            cols: 80,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| e.to_string())?;
-
-    let mut cmd = CommandBuilder::new(tool_path.display().to_string());
-    cmd.cwd(work_dir.display().to_string());
-    for arg in tool_args {
-        cmd.arg(arg);
-    }
-
-    let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
-    drop(pair.slave);
-
-    let reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
-
-    Ok(SpawnedTool::Pty {
-        child,
-        reader: Box::new(reader),
-    })
-}
-
 fn spawn_tool_pipe(
     tool_path: &Path,
     work_dir: &Path,
@@ -776,36 +728,12 @@ fn run_tool_sync(
     args: &[String],
     silent: bool,
 ) -> Result<CommandResult, String> {
-    let joined = args.join(" ");
+    let tool_args = tool_argv(device_id, args);
     if !silent {
-        emit_log(app, &format!("> upgrade_tool {joined}"), false);
+        emit_log(app, &format!("> upgrade_tool {}", tool_args.join(" ")), false);
     }
 
     match spawn_tool_child(tool_path, work_dir, device_id, args)? {
-        #[cfg(windows)]
-        SpawnedTool::Pty { mut child, reader } => {
-            let app_out = app.clone();
-            let stdout_handle =
-                thread::spawn(move || read_tool_stream(reader, app_out, silent));
-
-            let timeout = command_timeout(args);
-            let exit_ok = match wait_for_pty_child(child.as_mut(), timeout) {
-                Ok(ok) => ok,
-                Err(err) => {
-                    let _ = stdout_handle.join();
-                    return Err(err);
-                }
-            };
-
-            let output = stdout_handle
-                .join()
-                .map_err(|_| "读取 stdout 线程异常".to_string())??;
-
-            return Ok(CommandResult {
-                success: command_matches_success(args, &output, exit_ok),
-                output,
-            });
-        }
         SpawnedTool::Pipe {
             mut child,
             stdout,
@@ -1015,6 +943,15 @@ mod tests {
     }
 
     #[test]
+    fn pick_device_arg_omits_selector_for_single_device() {
+        assert_eq!(super::pick_device_arg(1, Some("1113113".into())), None);
+        assert_eq!(
+            super::pick_device_arg(2, Some("1113113".into())),
+            Some("1113113".into())
+        );
+    }
+
+    #[test]
     fn db_fails_on_nonzero_exit() {
         let args = vec!["DB".into(), "/path/download.bin".into()];
         let output = "Download boot...\n";
@@ -1126,10 +1063,11 @@ where
         .lock()
         .map_err(|e| e.to_string())?
         .clone();
+    let device_arg = device_arg_for_tool(&state, device);
 
     let result = tauri::async_runtime::spawn_blocking(move || {
         let (tool_path, work_dir) = resolve_tool_paths(&app)?;
-        f(&app, &tool_path, &work_dir, device.as_deref())
+        f(&app, &tool_path, &work_dir, device_arg.as_deref())
     })
     .await
     .map_err(|e| e.to_string())?;
@@ -1222,6 +1160,8 @@ pub async fn upgrade_firmware(
     if !result.success {
         let detail = if output_has_error(&result.output) {
             tool_error_summary(&result.output)
+        } else if result.output.trim().is_empty() {
+            "upgrade_tool 未返回输出（请确认固件路径有效且进程未被安全软件拦截）".to_string()
         } else {
             "未检测到 Upgrade firmware ok / Success".to_string()
         };
