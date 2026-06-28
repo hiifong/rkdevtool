@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { getVersion } from "@tauri-apps/api/app";
 import type { PageId } from "../../types/app";
+import packageJson from "../../../package.json";
 
 defineProps<{
   activePage: PageId;
@@ -7,11 +10,22 @@ defineProps<{
 
 const emit = defineEmits<{ navigate: [page: PageId] }>();
 
+const appVersion = ref(`v${packageJson.version}`);
+
 const navItems: { id: PageId; label: string }[] = [
   { id: "download", label: "下载镜像" },
   { id: "upgrade", label: "升级固件" },
   { id: "advanced", label: "高级功能" },
 ];
+
+onMounted(async () => {
+  try {
+    const version = await getVersion();
+    appVersion.value = `v${version}`;
+  } catch {
+    // 浏览器预览等非 Tauri 环境沿用 package.json 版本
+  }
+});
 </script>
 
 <template>
@@ -36,7 +50,7 @@ const navItems: { id: PageId; label: string }[] = [
     </nav>
 
     <div class="sidebar__spacer" />
-    <div class="sidebar__version">v1.0.0</div>
+    <div class="sidebar__version">{{ appVersion }}</div>
   </aside>
 </template>
 

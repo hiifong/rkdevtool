@@ -1,8 +1,8 @@
 [package]
 name = "rkdevtool"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "0.2.0"
+description = "A modern alternative to the official Windows-only RKDevTool. Wraps `upgrade_tool` with real-time logs, device polling, and native builds for macOS, Windows, and Linux."
+authors = ["hiifong <f@f.style>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
