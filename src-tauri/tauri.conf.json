@@ -28,7 +28,8 @@
     "targets": "all",
     "resources": [
       "bin/mac/*",
-      "bin/linux_x86-64/*"
+      "bin/linux_x86-64/*",
+      "bin/windows_x86-64/*"
     ],
     "macOS": {
       "entitlements": "entitlements.plist"

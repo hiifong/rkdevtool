@@ -66,6 +66,8 @@ pub struct ActionParams {
 fn platform_dir_name() -> &'static str {
     if cfg!(target_os = "macos") {
         "mac"
+    } else if cfg!(target_os = "windows") {
+        "windows_x86-64"
     } else {
         "linux_x86-64"
     }
@@ -649,12 +651,6 @@ fn try_spawn_with_script(
             .arg("/dev/null");
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-    {
-        cmd.arg("-q").arg("/dev/null").arg(tool_path);
-        cmd.args(tool_args);
-    }
-
     cmd.spawn().map_err(|e| e.to_string())
 }
 
@@ -668,6 +664,15 @@ fn spawn_tool_pipe(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .args(tool_args);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // 避免弹出控制台窗口
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
     cmd.spawn()
         .map_err(|e| format!("启动 upgrade_tool 失败: {e}"))
 }
