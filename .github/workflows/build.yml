@@ -7,9 +7,11 @@ on:
     tags:
       - v*
 
-# macOS 签名/公证 Secrets:
-#   APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
-#   APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / KEYCHAIN_PASSWORD
+# macOS Secrets:
+#   签名: APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / KEYCHAIN_PASSWORD
+#   公证(仅 tag 发布): APPLE_ID / APPLE_PASSWORD(应用专用密码) / APPLE_TEAM_ID
+#   APPLE_PASSWORD 必须在 https://appleid.apple.com 生成「应用专用密码」(xxxx-xxxx-xxxx-xxxx)
+#   不能用 Apple ID 登录密码；需在 Developer 网站接受最新协议
 # 见 https://v2.tauri.app/distribute/sign/macos/
 #
 # 触发规则:
@@ -35,10 +37,6 @@ jobs:
             bundle: src-tauri/target/release/bundle/
 
     runs-on: ${{ matrix.platform }}
-    env:
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -94,7 +92,23 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # 普通 push：只构建，不上传 Release
+      - name: Verify Apple notarization credentials
+        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for var in APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!var}" ]; then
+              echo "::error::$var is missing in GitHub Secrets"
+              exit 1
+            fi
+          done
+          echo "Checking notarization credentials with Apple..."
+          xcrun notarytool history --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD" --page-size 1
+
+      # 普通 push：只签名构建，不公证（无需 APPLE_ID/PASSWORD）
       - name: Build (push to main)
         if: github.ref == 'refs/heads/main'
         uses: tauri-apps/tauri-action@v0.6.2
@@ -114,7 +128,7 @@ jobs:
           path: ${{ matrix.bundle }}
           if-no-files-found: error
 
-      # 推送 tag：构建并发布 Release
+      # 推送 tag：签名 + 公证 + 发布 Release
       - name: Build and release (tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: tauri-apps/tauri-action@v0.6.2
@@ -123,6 +137,9 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: v__VERSION__
           releaseName: RKDevTool v__VERSION__
