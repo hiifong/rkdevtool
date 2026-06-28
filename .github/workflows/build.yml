@@ -9,6 +9,8 @@ on:
 
 # macOS Secrets:
 #   签名: APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / KEYCHAIN_PASSWORD
+#   APPLE_CERTIFICATE 必须是 Developer ID Application 的 .p12（不是 Apple Development）
+#   创建: developer.apple.com → Certificates → Developer ID Application
 #   公证(仅 tag 发布): APPLE_ID / APPLE_PASSWORD(应用专用密码) / APPLE_TEAM_ID
 #   APPLE_PASSWORD 必须在 https://appleid.apple.com 生成「应用专用密码」(xxxx-xxxx-xxxx-xxxx)
 #   不能用 Apple ID 登录密码；需在 Developer 网站接受最新协议
@@ -84,29 +86,22 @@ jobs:
       - name: Verify Certificate
         if: matrix.platform == 'macos-latest'
         run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E 'Apple Development|Developer ID Application|Apple Distribution' | head -n 1)
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> "$GITHUB_ENV"
-          echo "Certificate imported: $CERT_ID"
+          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+          echo "Certificate imported."
+
+      - name: Sign bundled macOS tools
+        if: matrix.platform == 'macos-latest'
+        run: |
+          TOOL="src-tauri/bin/mac/upgrade_tool"
+          if [ -f "$TOOL" ]; then
+            codesign --force --options runtime --timestamp --sign "$CERT_ID" "$TOOL"
+            codesign --verify --verbose "$TOOL"
+          fi
 
       - name: Install frontend dependencies
         run: npm ci
-
-      - name: Verify Apple notarization credentials
-        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/v')
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          for var in APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
-            if [ -z "${!var}" ]; then
-              echo "::error::$var is missing in GitHub Secrets"
-              exit 1
-            fi
-          done
-          echo "Checking notarization credentials with Apple..."
-          xcrun notarytool history --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_PASSWORD" --page-size 1
 
       # 普通 push：只签名构建，不公证（无需 APPLE_ID/PASSWORD）
       - name: Build (push to main)

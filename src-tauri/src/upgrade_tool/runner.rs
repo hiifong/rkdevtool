@@ -57,7 +57,6 @@ pub struct DownloadExecutePayload {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ActionParams {
     pub boot_path: Option<String>,
-    pub firmware_path: Option<String>,
     pub start_sector: Option<String>,
     pub sector_count: Option<String>,
     pub output_path: Option<String>,
@@ -373,6 +372,7 @@ impl TerminalLineBuffer {
         }
     }
 
+    #[cfg(test)]
     fn feed_bytes(&mut self, bytes: &[u8]) {
         for &byte in bytes {
             if byte == b'\n' {
@@ -608,18 +608,66 @@ fn tool_argv(device_id: Option<&str>, args: &[String]) -> Vec<String> {
     tool_args
 }
 
+#[cfg(windows)]
+fn apply_windows_hidden(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+enum SpawnedTool {
+    Pipe {
+        child: Child,
+        stdout: std::process::ChildStdout,
+        stderr: Option<std::process::ChildStderr>,
+    },
+    #[cfg(windows)]
+    Pty {
+        child: Box<dyn portable_pty::Child + Send + Sync>,
+        reader: Box<dyn Read + Send>,
+    },
+}
+
+#[cfg(windows)]
+fn wait_for_pty_child(
+    child: &mut dyn portable_pty::Child,
+    timeout: Duration,
+) -> Result<bool, String> {
+    let start = Instant::now();
+    loop {
+        match child.try_wait().map_err(|e| e.to_string())? {
+            Some(Ok(status)) => return Ok(status.success()),
+            Some(Err(e)) => return Err(e.to_string()),
+            None if start.elapsed() >= timeout => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!(
+                    "操作超时（{} 秒），请重新进入 Maskrom 并检查 USB 连接后重试",
+                    timeout.as_secs()
+                ));
+            }
+            None => thread::sleep(Duration::from_millis(200)),
+        }
+    }
+}
+
 /// 通过 PTY 启动 upgrade_tool，避免 pipe 模式下 stdout 全缓冲导致日志延迟。
 fn spawn_tool_child(
     tool_path: &Path,
     work_dir: &Path,
     device_id: Option<&str>,
     args: &[String],
-) -> Result<Child, String> {
+) -> Result<SpawnedTool, String> {
     let tool_args = tool_argv(device_id, args);
 
     #[cfg(unix)]
-    if let Ok(child) = try_spawn_with_script(tool_path, work_dir, &tool_args) {
-        return Ok(child);
+    if let Ok(spawned) = try_spawn_with_script(tool_path, work_dir, &tool_args) {
+        return Ok(spawned);
+    }
+
+    #[cfg(windows)]
+    if let Ok(spawned) = try_spawn_with_pty(tool_path, work_dir, &tool_args) {
+        return Ok(spawned);
     }
 
     spawn_tool_pipe(tool_path, work_dir, &tool_args)
@@ -630,7 +678,7 @@ fn try_spawn_with_script(
     tool_path: &Path,
     work_dir: &Path,
     tool_args: &[String],
-) -> Result<Child, String> {
+) -> Result<SpawnedTool, String> {
     let mut cmd = Command::new("script");
     cmd.current_dir(work_dir)
         .stdout(Stdio::piped())
@@ -651,14 +699,56 @@ fn try_spawn_with_script(
             .arg("/dev/null");
     }
 
-    cmd.spawn().map_err(|e| e.to_string())
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    let stdout = child.stdout.take().ok_or("无法读取 stdout")?;
+    let stderr = child.stderr.take();
+    Ok(SpawnedTool::Pipe {
+        child,
+        stdout,
+        stderr,
+    })
+}
+
+#[cfg(windows)]
+fn try_spawn_with_pty(
+    tool_path: &Path,
+    work_dir: &Path,
+    tool_args: &[String],
+) -> Result<SpawnedTool, String> {
+    use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut cmd = CommandBuilder::new(tool_path.display().to_string());
+    cmd.cwd(work_dir.display().to_string());
+    for arg in tool_args {
+        cmd.arg(arg);
+    }
+
+    let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
+    drop(pair.slave);
+
+    let reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
+
+    Ok(SpawnedTool::Pty {
+        child: Box::new(child),
+        reader: Box::new(reader),
+    })
 }
 
 fn spawn_tool_pipe(
     tool_path: &Path,
     work_dir: &Path,
     tool_args: &[String],
-) -> Result<Child, String> {
+) -> Result<SpawnedTool, String> {
     let mut cmd = Command::new(tool_path);
     cmd.current_dir(work_dir)
         .stdout(Stdio::piped())
@@ -666,15 +756,17 @@ fn spawn_tool_pipe(
         .args(tool_args);
 
     #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // 避免弹出控制台窗口
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    apply_windows_hidden(&mut cmd);
 
-    cmd.spawn()
-        .map_err(|e| format!("启动 upgrade_tool 失败: {e}"))
+    let mut child = cmd.spawn()
+        .map_err(|e| format!("启动 upgrade_tool 失败: {e}"))?;
+    let stdout = child.stdout.take().ok_or("无法读取 stdout")?;
+    let stderr = child.stderr.take();
+    Ok(SpawnedTool::Pipe {
+        child,
+        stdout,
+        stderr,
+    })
 }
 
 fn run_tool_sync(
@@ -690,44 +782,71 @@ fn run_tool_sync(
         emit_log(app, &format!("> upgrade_tool {joined}"), false);
     }
 
-    let mut child = spawn_tool_child(tool_path, work_dir, device_id, args)?;
+    match spawn_tool_child(tool_path, work_dir, device_id, args)? {
+        #[cfg(windows)]
+        SpawnedTool::Pty { mut child, reader } => {
+            let app_out = app.clone();
+            let stdout_handle =
+                thread::spawn(move || read_tool_stream(reader, app_out, silent));
 
-    let stdout = child.stdout.take().ok_or("无法读取 stdout")?;
-    let stderr = child.stderr.take();
+            let timeout = command_timeout(args);
+            let exit_ok = match wait_for_pty_child(child.as_mut(), timeout) {
+                Ok(ok) => ok,
+                Err(err) => {
+                    let _ = stdout_handle.join();
+                    return Err(err);
+                }
+            };
 
-    let app_out = app.clone();
-    let stdout_handle = thread::spawn(move || read_tool_stream(stdout, app_out, silent));
+            let output = stdout_handle
+                .join()
+                .map_err(|_| "读取 stdout 线程异常".to_string())??;
 
-    let stderr_handle = if let Some(stderr) = stderr {
-        let app_err = app.clone();
-        Some(thread::spawn(move || read_tool_stream(stderr, app_err, silent)))
-    } else {
-        None
-    };
-
-    let timeout = command_timeout(args);
-    let status = match wait_for_child(&mut child, timeout) {
-        Ok(status) => status,
-        Err(err) => {
-            let _ = stdout_handle.join();
-            if let Some(handle) = stderr_handle {
-                let _ = handle.join();
-            }
-            return Err(err);
+            return Ok(CommandResult {
+                success: command_matches_success(args, &output, exit_ok),
+                output,
+            });
         }
-    };
+        SpawnedTool::Pipe {
+            mut child,
+            stdout,
+            stderr,
+        } => {
+            let app_out = app.clone();
+            let stdout_handle = thread::spawn(move || read_tool_stream(stdout, app_out, silent));
 
-    let mut output = stdout_handle
-        .join()
-        .map_err(|_| "读取 stdout 线程异常".to_string())??;
-    if let Some(handle) = stderr_handle {
-        output.push_str(&handle.join().map_err(|_| "读取 stderr 线程异常".to_string())??);
+            let stderr_handle = if let Some(stderr) = stderr {
+                let app_err = app.clone();
+                Some(thread::spawn(move || read_tool_stream(stderr, app_err, silent)))
+            } else {
+                None
+            };
+
+            let timeout = command_timeout(args);
+            let status = match wait_for_child(&mut child, timeout) {
+                Ok(status) => status,
+                Err(err) => {
+                    let _ = stdout_handle.join();
+                    if let Some(handle) = stderr_handle {
+                        let _ = handle.join();
+                    }
+                    return Err(err);
+                }
+            };
+
+            let mut output = stdout_handle
+                .join()
+                .map_err(|_| "读取 stdout 线程异常".to_string())??;
+            if let Some(handle) = stderr_handle {
+                output.push_str(&handle.join().map_err(|_| "读取 stderr 线程异常".to_string())??);
+            }
+
+            Ok(CommandResult {
+                success: command_matches_success(args, &output, status.success()),
+                output,
+            })
+        }
     }
-
-    Ok(CommandResult {
-        success: command_matches_success(args, &output, status.success()),
-        output,
-    })
 }
 
 fn parse_field(line: &str, keys: &[&str]) -> Option<String> {
@@ -750,9 +869,12 @@ fn parse_field(line: &str, keys: &[&str]) -> Option<String> {
 }
 
 fn run_ld_sync(tool_path: &Path, work_dir: &Path) -> Result<String, String> {
-    let output = Command::new(tool_path)
-        .current_dir(work_dir)
-        .arg("LD")
+    let mut cmd = Command::new(tool_path);
+    cmd.current_dir(work_dir).arg("LD");
+    #[cfg(windows)]
+    apply_windows_hidden(&mut cmd);
+
+    let output = cmd
         .output()
         .map_err(|e| format!("启动 upgrade_tool 失败: {e}"))?;
 
@@ -1035,10 +1157,7 @@ pub async fn get_tool_info(app: AppHandle) -> Result<ToolInfo, String> {
 #[tauri::command]
 pub async fn list_devices(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<RockusbDevice>, String> {
     if *state.busy.lock().map_err(|e| e.to_string())? {
-        let cached = cached_devices(&state)?;
-        if !cached.is_empty() {
-            return Ok(cached);
-        }
+        return cached_devices(&state);
     }
 
     let (tool_path, work_dir) = resolve_tool_paths(&app)?;
@@ -1309,7 +1428,6 @@ pub async fn run_action(
 ) -> Result<String, String> {
     let params = params.unwrap_or(ActionParams {
         boot_path: None,
-        firmware_path: None,
         start_sector: None,
         sector_count: None,
         output_path: None,

@@ -27,7 +27,6 @@ export interface DownloadExecutePayload {
 
 export interface ActionParams {
   boot_path?: string;
-  firmware_path?: string;
   start_sector?: string;
   sector_count?: string;
   output_path?: string;

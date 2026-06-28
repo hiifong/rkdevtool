@@ -1,7 +1,5 @@
-import { ref } from "vue";
 import * as toolApi from "../api/tool";
-
-const busy = ref(false);
+import { useAppState } from "./useAppState";
 
 function extractError(err: unknown): string {
   if (typeof err === "string") return err;
@@ -10,15 +8,17 @@ function extractError(err: unknown): string {
 }
 
 export function useToolCommand() {
+  const { busy, setBusy } = useAppState();
+
   async function run<T>(task: () => Promise<T>, label?: string): Promise<T | null> {
     if (busy.value) return null;
-    busy.value = true;
+    setBusy(true);
     try {
       return await task();
     } catch (err) {
       throw new Error(label ? `${label}: ${extractError(err)}` : extractError(err));
     } finally {
-      busy.value = false;
+      setBusy(false);
     }
   }
 
