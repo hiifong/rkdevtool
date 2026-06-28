@@ -23,6 +23,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+afptool-rs = { git = "https://github.com/suyulin/afptool-rs", tag = "v1.2.3" }
 
 [target.'cfg(windows)'.dependencies]
 portable-pty = "0.8"

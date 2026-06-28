@@ -12,6 +12,13 @@ export interface ToolInfo {
   tool_path: string;
 }
 
+export interface FirmwareInfo {
+  format: string;
+  firmware_version: string;
+  loader_version: string;
+  chip_family: string;
+}
+
 export interface DownloadRowPayload {
   enabled: boolean;
   storage: string;

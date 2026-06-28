@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   ActionParams,
   DownloadExecutePayload,
+  FirmwareInfo,
   RockusbDevice,
   ToolInfo,
 } from "../types/tool";
@@ -34,8 +35,12 @@ export function downloadExecute(payload: DownloadExecutePayload) {
   return invoke<void>("download_execute", { payload });
 }
 
+export function parseFirmware(path: string) {
+  return invoke<FirmwareInfo>("parse_firmware", { path });
+}
+
 export function extractFirmware(path: string, outputDir: string) {
-  return invoke<void>("extract_firmware", { path, outputDir });
+  return invoke<string>("extract_firmware", { path, outputDir });
 }
 
 export function readChipInfo() {

@@ -1264,25 +1264,6 @@ pub async fn download_boot(app: AppHandle, state: State<'_, AppState>, path: Str
 }
 
 #[tauri::command]
-pub async fn extract_firmware(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    path: String,
-    output_dir: String,
-) -> Result<(), String> {
-    let args = vec![String::from("EXF"), path, output_dir];
-    let result = with_tool(app, state, move |app, tool, dir, device| {
-        run_tool_sync(app, tool, dir, device, &args, false)
-    })
-    .await?;
-
-    if !result.success {
-        return Err("解包固件失败（Mac 版 upgrade_tool 可能不支持 EXF，请使用 Linux v2.44+）".to_string());
-    }
-    Ok(())
-}
-
-#[tauri::command]
 pub async fn read_chip_info(app: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     let result = with_tool(app, state, |app, tool, dir, device| {
         run_tool_sync(app, tool, dir, device, &[String::from("RCI")], false)

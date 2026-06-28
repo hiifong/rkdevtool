@@ -14,9 +14,34 @@ const firmwareVersion = ref("—");
 const loaderVersion = ref("—");
 const chipInfo = ref("—");
 
+async function refreshFirmwareInfo() {
+  const path = firmwarePath.value.trim();
+  if (!path) {
+    firmwareVersion.value = "—";
+    loaderVersion.value = "—";
+    chipInfo.value = "—";
+    return;
+  }
+
+  try {
+    const info = await toolApi.parseFirmware(path);
+    firmwareVersion.value = info.firmware_version || "—";
+    loaderVersion.value = info.loader_version || "—";
+    chipInfo.value = info.chip_family || "—";
+  } catch (err) {
+    firmwareVersion.value = "—";
+    loaderVersion.value = "—";
+    chipInfo.value = "—";
+    appendLog(String(err), "error");
+  }
+}
+
 async function browseFirmware() {
   const path = await pickFile("选择固件文件");
-  if (path) firmwarePath.value = path;
+  if (path) {
+    firmwarePath.value = path;
+    await refreshFirmwareInfo();
+  }
 }
 
 async function refreshChipInfo() {
@@ -83,7 +108,10 @@ onMounted(() => {
         <span class="info-card__label">芯片信息</span>
         <input v-model="chipInfo" class="info-card__value" readonly />
       </div>
-      <AppButton size="sm" :disabled="busy" @click="refreshChipInfo">刷新芯片信息</AppButton>
+      <div class="info-card__actions">
+        <AppButton size="sm" :disabled="busy" @click="refreshChipInfo">刷新芯片信息</AppButton>
+        <AppButton size="sm" :disabled="busy" @click="refreshFirmwareInfo">刷新固件信息</AppButton>
+      </div>
     </div>
   </div>
 </template>
@@ -148,5 +176,11 @@ onMounted(() => {
   background: var(--color-surface-hover);
   font-size: 13px;
   color: var(--color-text-primary);
+}
+
+.info-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

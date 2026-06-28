@@ -6,6 +6,7 @@ import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
 import { useToolCommand, toolApi } from "../../composables/useToolCommand";
 import { pickFile } from "../../composables/useFilePicker";
+import { buildExtractOutputDir } from "../../composables/useExtractPath";
 
 const { appendLog, busy } = useAppState();
 const { run } = useToolCommand();
@@ -118,19 +119,27 @@ async function extractFirmware() {
     return;
   }
 
-  const outputDir = await open({
+  const parentDir = await open({
     directory: true,
     multiple: false,
-    title: "选择解包输出目录",
+    title: "选择解包输出位置",
   });
 
-  if (!outputDir || Array.isArray(outputDir)) return;
+  if (!parentDir || Array.isArray(parentDir)) return;
+
+  const outputDir = await buildExtractOutputDir(parentDir, firmwarePath.value);
 
   try {
-    await run(
+    const extractLog = await run(
       () => toolApi.extractFirmware(firmwarePath.value, outputDir),
       "解包固件",
     );
+    if (extractLog) {
+      for (const line of extractLog.split("\n")) {
+        if (line.trim()) appendLog(line, "info");
+      }
+    }
+    appendLog(`解包固件成功: ${outputDir}`, "success");
   } catch (err) {
     appendLog(String(err), "error");
   }

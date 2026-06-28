@@ -33,6 +33,7 @@ const storageIndexMap: Record<string, string> = {
 
 const forceByAddress = ref(false);
 const selectedRowId = ref(1);
+const loaderVersion = ref("—");
 let nextId = 2;
 
 const rows = ref<PartitionRow[]>([
@@ -63,7 +64,20 @@ function addRow() {
 
 async function browsePath(row: PartitionRow) {
   const path = await pickFile("选择镜像文件");
-  if (path) row.path = path;
+  if (!path) return;
+  row.path = path;
+  if (row.name.toLowerCase().includes("loader")) {
+    await refreshLoaderVersion(path);
+  }
+}
+
+async function refreshLoaderVersion(path: string) {
+  try {
+    const info = await toolApi.parseFirmware(path);
+    loaderVersion.value = info.loader_version || "—";
+  } catch {
+    loaderVersion.value = "—";
+  }
 }
 
 async function execute() {
@@ -167,7 +181,7 @@ function clearRows() {
     </div>
 
     <div class="toolbar">
-      <span class="toolbar__loader">Loader Ver: —</span>
+      <span class="toolbar__loader">Loader Ver: {{ loaderVersion }}</span>
       <div class="toolbar__actions">
         <label class="toolbar__checkbox">
           <input v-model="forceByAddress" type="checkbox" :disabled="busy" />
