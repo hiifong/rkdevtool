@@ -1,0 +1,4 @@
+# Rockchip USB (VID 2207) — used by upgrade_tool / RKDevTool.
+# Installed to /lib/udev/rules.d/ by the .deb package or install-udev.sh.
+
+SUBSYSTEM=="usb", ATTR{idVendor}=="2207", MODE="0666", GROUP="plugdev", TAG+="uaccess"

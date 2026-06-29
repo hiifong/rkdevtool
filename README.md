@@ -56,6 +56,27 @@ Linux extras:
 sudo apt-get install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 ```
 
+**USB permissions (flashing without sudo)**
+
+On Linux, `upgrade_tool` needs read/write access to Rockchip USB devices (vendor ID `2207`). Without udev rules you may see errors such as `Creating Comm Object failed!` and must run with `sudo`.
+
+| Install method | udev setup |
+|----------------|------------|
+| **`.deb`** | Automatic: rule is installed to `/lib/udev/rules.d/` and udev is reloaded during `apt install` |
+| **AppImage** | Run once: `sudo packaging/linux/install-udev.sh` (from the repo) or copy the rule manually |
+| **From source** | Manual: |
+
+Manual / AppImage one-liner:
+
+```bash
+sudo packaging/linux/install-udev.sh
+# or
+sudo cp packaging/linux/99-rkdevtool-rockchip.rules /lib/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=usb
+```
+
+Unplug/replug the device (or re-enter Maskrom), then launch RKDevTool as a normal user. Do **not** run the GUI with `sudo` unless necessary.
+
 **`upgrade_tool` binaries**
 
 Place Rockchip SDK `upgrade_tool` files under:
@@ -153,6 +174,27 @@ Linux 额外依赖：
 ```bash
 sudo apt-get install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 ```
+
+**USB 权限（免 sudo 刷机）**
+
+Linux 下 `upgrade_tool` 需要访问瑞芯微 USB 设备（厂商 ID `2207`）。未配置 udev 时可能出现 `Creating Comm Object failed!` 等错误，只能使用 `sudo` 刷机。
+
+| 安装方式 | udev 配置 |
+|----------|-----------|
+| **`.deb`** | 自动：安装时写入 `/lib/udev/rules.d/` 并 reload udev |
+| **AppImage** | 需执行一次：`sudo packaging/linux/install-udev.sh` |
+| **源码运行** | 手动配置（见下） |
+
+手动 / AppImage 一次性命令：
+
+```bash
+sudo packaging/linux/install-udev.sh
+# 或
+sudo cp packaging/linux/99-rkdevtool-rockchip.rules /lib/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=usb
+```
+
+重新插拔设备或重新进入 Maskrom 后，以普通用户启动 RKDevTool 即可。除非必要，**不要用 `sudo` 运行图形界面**。
 
 **`upgrade_tool` 二进制**
 

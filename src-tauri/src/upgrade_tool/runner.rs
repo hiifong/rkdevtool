@@ -575,6 +575,27 @@ fn tool_error_summary(output: &str) -> String {
 }
 
 #[cfg(target_os = "linux")]
+fn linux_usb_permission_hint(output: &str) -> &'static str {
+    let lower = strip_ansi(output).to_ascii_lowercase();
+    if lower.contains("comm object failed")
+        || lower.contains("permission denied")
+        || lower.contains("couldn't open device")
+        || lower.contains("could not open device")
+        || lower.contains("access denied")
+        || lower.contains("open usb device failed")
+    {
+        " (USB permission denied: install the .deb package, or run packaging/linux/install-udev.sh)"
+    } else {
+        ""
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn linux_usb_permission_hint(_output: &str) -> &'static str {
+    ""
+}
+
+#[cfg(target_os = "linux")]
 fn shell_quote(arg: &str) -> String {
     if arg.is_empty() {
         return "''".to_string();
@@ -1165,7 +1186,9 @@ pub async fn upgrade_firmware(
         } else {
             "Upgrade firmware ok / Success not detected".to_string()
         };
-        let hint = if detail.to_ascii_lowercase().contains("read chip info fail") {
+        let hint = if !linux_usb_permission_hint(&result.output).is_empty() {
+            linux_usb_permission_hint(&result.output)
+        } else if detail.to_ascii_lowercase().contains("read chip info fail") {
             " (In Maskrom, download Boot first; on Mac v2.13 try Linux v2.44+ if this chip is unsupported)"
         } else if detail.contains("ftruncate") {
             " (Use update.img firmware package, not download.bin / Loader file)"
@@ -1193,7 +1216,9 @@ pub async fn download_boot(app: AppHandle, state: State<'_, AppState>, path: Str
         } else {
             "upgrade_tool exited with non-zero status".to_string()
         };
-        let hint = if detail.to_ascii_lowercase().contains("ddr") || detail.contains("请检查") {
+        let hint = if !linux_usb_permission_hint(&result.output).is_empty() {
+            linux_usb_permission_hint(&result.output)
+        } else if detail.to_ascii_lowercase().contains("ddr") || detail.contains("请检查") {
             " (Check DDR/chip and USB connection, re-enter Maskrom and retry)"
         } else {
             " (Use a Loader file such as MiniLoaderAll.bin; verify download.bin is a valid Loader)"
