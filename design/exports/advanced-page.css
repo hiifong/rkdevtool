@@ -199,7 +199,6 @@
   position: relative;
   height: 100%;
   background: #f1f5f9FF;
-  overflow: hidden;
   display: flex;
   align-items: start;
   align-content: stretch;
@@ -260,10 +259,8 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 24px;
-  padding-inline-end: 24px;
-  padding-block-start: 16px;
-  padding-block-end: 16px;
+  padding-inline-start: 20px;
+  padding-inline-end: 20px;
   flex-direction: row;
   flex-wrap: nowrap;
   flex-shrink: 0;
@@ -291,16 +288,15 @@
   width: 700px;
   height: 688px;
   background: #f1f5f9FF;
-  overflow: hidden;
   display: flex;
   align-items: start;
   align-content: stretch;
   justify-content: start;
-  row-gap: 16px;
+  row-gap: 24px;
   padding-inline-start: 24px;
   padding-inline-end: 24px;
   padding-block-start: 24px;
-  padding-block-end: 28px;
+  padding-block-end: 24px;
   flex-direction: column;
   flex-wrap: nowrap;
   flex-shrink: 0;
@@ -630,7 +626,7 @@
 .file-secti-3d83bea31140 {
   position: relative;
   width: 652px;
-  height: 132px;
+  height: 124px;
   border-start-start-radius: 12px;
   border-start-end-radius: 12px;
   border-end-start-radius: 12px;
@@ -639,7 +635,7 @@
   align-items: start;
   align-content: stretch;
   justify-content: start;
-  row-gap: 16px;
+  row-gap: 12px;
   padding-inline-start: 20px;
   padding-inline-end: 20px;
   padding-block-start: 20px;
@@ -653,9 +649,8 @@
 .sector-3d98a41e0b91 {
   position: relative;
   width: 260px;
-  height: 32px;
+  height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -670,9 +665,8 @@
 .sector-3d98a41339ee {
   position: relative;
   width: 260px;
-  height: 32px;
+  height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -693,7 +687,7 @@
 .input-3d98a42527c7 {
   position: relative;
   width: 120px;
-  height: 32px;
+  height: 36px;
   border-start-start-radius: 8px;
   border-start-end-radius: 8px;
   border-end-start-radius: 8px;
@@ -754,7 +748,7 @@
 .input-3d98a41aab69 {
   position: relative;
   width: 120px;
-  height: 32px;
+  height: 36px;
   border-start-start-radius: 8px;
   border-start-end-radius: 8px;
   border-end-start-radius: 8px;
@@ -2415,30 +2409,6 @@
   font-weight: 400;
 }
 
-/* Action / 读取Capability */
-.action-3d83bef38720 > svg {
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  transform: translate(0px,0px);
-}
-.action-3d83bef38720 {
-  position: relative;
-  width: 100px;
-  height: 36px;
-  border-start-start-radius: 8px;
-  border-start-end-radius: 8px;
-  border-end-start-radius: 8px;
-  border-end-end-radius: 8px;
-  display: flex;
-  align-items: center;
-  align-content: stretch;
-  justify-content: center;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-}
-
 /* Action / 读取Chip信息 */
 .action-3d83beec6fe6 > svg {
   position: absolute;
@@ -2511,47 +2481,28 @@
   flex-shrink: 0;
 }
 
-/* Text */
-.text-3d83bef7d046 {
-  height: 14px;
-  flex-shrink: 0;
+/* Btn / 刷新芯片信息 */
+.btn-4025d0639218 > svg {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transform: translate(0px,0px);
 }
-.text-3d83bef7d046 .root-0 {
-  
-  
+.btn-4025d0639218 {
+  position: relative;
+  width: 100px;
+  height: 36px;
+  border-start-start-radius: 8px;
+  border-start-end-radius: 8px;
+  border-end-start-radius: 8px;
+  border-end-end-radius: 8px;
   display: flex;
-  white-space: break-spaces;
-  align-items: flex-start;
-}
-.text-3d83bef7d046 .root-0-paragraph-set-0 {
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: inherit;
-  
-  margin-right: 1px;
-  vertical-align: top;
-}
-.text-3d83bef7d046 .root-0-paragraph-set-0-paragraph-0 {
-  font-size: 0;
-  line-height: 1.2;
-  margin: 0;
-  text-align: center;
-}
-.text-3d83bef7d046 .root-0-paragraph-set-0-paragraph-0-text-0 {
-  color: rgba(15, 23, 42, 1);
-  text-transform: none;
-  
-  line-break: auto;
-  overflow-wrap: initial;
-  white-space: pre;
-  font-size: 11px;
-  text-rendering: geometricPrecision;
-  caret-color: rgba(15, 23, 42, 1);
-  text-decoration: none;
-  letter-spacing: 0px;
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 400;
+  align-items: center;
+  align-content: stretch;
+  justify-content: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 /* Text */
@@ -2683,13 +2634,55 @@
   font-weight: 400;
 }
 
+/* Text */
+.text-4025d0639219 {
+  height: 14px;
+  flex-shrink: 0;
+}
+.text-4025d0639219 .root-0 {
+  
+  
+  display: flex;
+  white-space: break-spaces;
+  align-items: flex-start;
+}
+.text-4025d0639219 .root-0-paragraph-set-0 {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: inherit;
+  
+  margin-right: 1px;
+  vertical-align: top;
+}
+.text-4025d0639219 .root-0-paragraph-set-0-paragraph-0 {
+  font-size: 0;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+.text-4025d0639219 .root-0-paragraph-set-0-paragraph-0-text-0 {
+  color: rgba(15, 23, 42, 1);
+  text-transform: none;
+  
+  line-break: auto;
+  overflow-wrap: initial;
+  white-space: pre;
+  font-size: 11px;
+  text-rendering: geometricPrecision;
+  caret-color: rgba(15, 23, 42, 1);
+  text-decoration: none;
+  letter-spacing: 0px;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+}
+
 /* File / 固件 */
 .file-3d83bec1769a {
   position: relative;
   width: 612px;
   height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -2706,7 +2699,6 @@
   width: 612px;
   height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -2783,10 +2775,8 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-  padding-block-start: 10px;
-  padding-block-end: 10px;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
   flex: 1;
@@ -2931,7 +2921,6 @@
   border-start-end-radius: 8px;
   border-end-start-radius: 8px;
   border-end-end-radius: 8px;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -2983,10 +2972,8 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-  padding-block-start: 10px;
-  padding-block-end: 10px;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
   flex: 1;

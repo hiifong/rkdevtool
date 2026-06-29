@@ -2,7 +2,7 @@
   "app": {
     "name": "RKDevTool",
     "subtitle": "瑞芯微开发工具",
-    "version": "v1.0.0",
+    "version": "v0.2.0",
     "layout": {
       "type": "sidebar-main",
       "structure": ["sidebar", "main-area", "status-bar"],
@@ -60,6 +60,8 @@
       "components": {
         "firmwareRow": {
           "type": "inline-action-row",
+          "height": 68,
+          "padding": { "horizontal": 16, "vertical": 16 },
           "items": [
             { "id": "firmware-label", "label": "固件", "type": "label" },
             { "id": "firmware-path", "type": "file-path-input", "flex": "fill" },
@@ -67,27 +69,61 @@
             { "id": "upgrade", "label": "升级", "variant": "primary" }
           ]
         },
-        "infoFields": [
-          { "key": "firmwareVersion", "label": "固件版本", "readonly": true },
-          { "key": "loaderVersion", "label": "Loader版本", "readonly": true },
-          { "key": "chipInfo", "label": "芯片信息", "readonly": true }
-        ]
+        "infoCard": {
+          "height": 220,
+          "rowGap": 12,
+          "padding": 20,
+          "placeholder": "—",
+          "infoFields": [
+            { "key": "firmwareVersion", "label": "固件版本", "readonly": true },
+            { "key": "loaderVersion", "label": "Loader版本", "readonly": true },
+            { "key": "chipInfo", "label": "芯片信息", "readonly": true }
+          ],
+          "actions": {
+            "align": "flex-end",
+            "gap": 8,
+            "buttons": [
+              { "key": "refreshChipInfo", "label": "刷新芯片信息", "variant": "secondary", "size": "sm" },
+              { "key": "refreshFirmwareInfo", "label": "刷新固件信息", "variant": "secondary", "size": "sm" }
+            ]
+          }
+        }
       }
     },
     "advanced": {
       "title": "高级功能",
       "description": "设备调试、Flash 操作和底层功能",
       "components": {
+        "fileSection": {
+          "height": 124,
+          "rowGap": 12,
+          "padding": 20
+        },
+        "gridArea": {
+          "height": 396,
+          "padding": 20,
+          "columnGap": 20,
+          "actionGrid": { "width": 444, "rowGap": 8, "columnGap": 8, "buttonSize": "100x36" },
+          "storageList": { "width": 140 }
+        },
+        "sectorCard": {
+          "height": 72,
+          "padding": 20,
+          "columnGap": 24
+        },
         "fileInputs": [
           { "key": "boot", "label": "Boot", "browseButton": { "label": "...", "width": 36, "height": 36 }, "action": { "label": "下载", "variant": "primary" } },
           { "key": "firmware", "label": "固件", "browseButton": { "label": "...", "width": 36, "height": 36 }, "action": { "label": "解包", "variant": "secondary" } }
         ],
         "actionGrid": {
           "columns": 4,
+          "rowGap": 8,
+          "columnGap": 8,
+          "buttonSize": { "width": 100, "height": 36 },
           "groups": [
             {
               "name": "信息读取",
-              "actions": ["读取FlashID", "读取Flash信息", "读取Chip信息", "读取Capability"]
+              "actions": ["刷新芯片信息", "读取FlashID", "读取Flash信息", "读取Chip信息"]
             },
             {
               "name": "设备控制",
@@ -106,6 +142,7 @@
         },
         "storageList": {
           "type": "selectable-list",
+          "width": 140,
           "items": ["FLASH", "EMMC", "SD", "SD1", "SPINOR", "SPINAND", "RAM", "USB", "SATA", "PCIE"]
         },
         "sectorInputs": [

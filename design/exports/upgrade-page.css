@@ -291,7 +291,6 @@
   width: 700px;
   height: 688px;
   background: #f1f5f9FF;
-  overflow: hidden;
   display: flex;
   align-items: start;
   align-content: stretch;
@@ -787,7 +786,7 @@
 .info-card-3d83ab65a100 {
   position: relative;
   width: 652px;
-  height: 160px;
+  height: 220px;
   border-start-start-radius: 12px;
   border-start-end-radius: 12px;
   border-end-start-radius: 12px;
@@ -796,7 +795,7 @@
   align-items: start;
   align-content: stretch;
   justify-content: start;
-  row-gap: 16px;
+  row-gap: 12px;
   padding-inline-start: 20px;
   padding-inline-end: 20px;
   padding-block-start: 20px;
@@ -816,7 +815,7 @@
 .firmware-r-3d8eb7f691cb {
   position: relative;
   width: 652px;
-  height: 56px;
+  height: 68px;
   border-start-start-radius: 12px;
   border-start-end-radius: 12px;
   border-end-start-radius: 12px;
@@ -835,13 +834,26 @@
   flex-shrink: 0;
 }
 
+/* Info Card Actions */
+.info-card-4026ec76c4ce {
+  position: relative;
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  align-content: stretch;
+  justify-content: end;
+  column-gap: 8px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
 /* Info / 芯片信息 */
 .info-3d83ab83788b {
   position: relative;
-  width: 620px;
-  height: 32px;
+  width: 100%;
+  height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -849,16 +861,14 @@
   column-gap: 16px;
   flex-direction: row;
   flex-wrap: nowrap;
-  flex-shrink: 0;
 }
 
 /* Info / Loader版本 */
 .info-loa-3d83ab78328d {
   position: relative;
-  width: 620px;
-  height: 32px;
+  width: 100%;
+  height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -866,16 +876,14 @@
   column-gap: 16px;
   flex-direction: row;
   flex-wrap: nowrap;
-  flex-shrink: 0;
 }
 
 /* Info / 固件版本 */
 .info-3d83ab6ca7f3 {
   position: relative;
-  width: 620px;
-  height: 32px;
+  width: 100%;
+  height: 36px;
   background: #ffffffFF;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -883,7 +891,144 @@
   column-gap: 16px;
   flex-direction: row;
   flex-wrap: nowrap;
+}
+
+/* Btn / 刷新固件信息 */
+.btn-40273512655d > svg {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transform: translate(0px,0px);
+}
+.btn-40273512655d {
+  position: relative;
+  width: 94px;
+  height: 32px;
+  border-start-start-radius: 8px;
+  border-start-end-radius: 8px;
+  border-end-start-radius: 8px;
+  border-end-end-radius: 8px;
+  display: flex;
+  align-items: center;
+  align-content: stretch;
+  justify-content: center;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
+  flex-direction: row;
+  flex-wrap: nowrap;
   flex-shrink: 0;
+}
+
+/* Btn / 刷新芯片信息 */
+.btn-4027350a9280 > svg {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transform: translate(0px,0px);
+}
+.btn-4027350a9280 {
+  position: relative;
+  width: 94px;
+  height: 32px;
+  border-start-start-radius: 8px;
+  border-start-end-radius: 8px;
+  border-end-start-radius: 8px;
+  border-end-end-radius: 8px;
+  display: flex;
+  align-items: center;
+  align-content: stretch;
+  justify-content: center;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* Text */
+.text-40273512655e {
+  height: 14px;
+  flex-shrink: 0;
+}
+.text-40273512655e .root-0 {
+  
+  
+  display: flex;
+  white-space: break-spaces;
+  align-items: flex-start;
+}
+.text-40273512655e .root-0-paragraph-set-0 {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: inherit;
+  
+  margin-right: 1px;
+  vertical-align: top;
+}
+.text-40273512655e .root-0-paragraph-set-0-paragraph-0 {
+  font-size: 0;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+.text-40273512655e .root-0-paragraph-set-0-paragraph-0-text-0 {
+  color: rgba(15, 23, 42, 1);
+  text-transform: none;
+  
+  line-break: auto;
+  overflow-wrap: initial;
+  white-space: pre;
+  font-size: 11px;
+  text-rendering: geometricPrecision;
+  caret-color: rgba(15, 23, 42, 1);
+  text-decoration: none;
+  letter-spacing: 0px;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* Text */
+.text-4027350a9281 {
+  height: 14px;
+  flex-shrink: 0;
+}
+.text-4027350a9281 .root-0 {
+  
+  
+  display: flex;
+  white-space: break-spaces;
+  align-items: flex-start;
+}
+.text-4027350a9281 .root-0-paragraph-set-0 {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: inherit;
+  
+  margin-right: 1px;
+  vertical-align: top;
+}
+.text-4027350a9281 .root-0-paragraph-set-0-paragraph-0 {
+  font-size: 0;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+.text-4027350a9281 .root-0-paragraph-set-0-paragraph-0-text-0 {
+  color: rgba(15, 23, 42, 1);
+  text-transform: none;
+  
+  line-break: auto;
+  overflow-wrap: initial;
+  white-space: pre;
+  font-size: 11px;
+  text-rendering: geometricPrecision;
+  caret-color: rgba(15, 23, 42, 1);
+  text-decoration: none;
+  letter-spacing: 0px;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
 }
 
 /* value */
@@ -895,8 +1040,7 @@
 }
 .value-3d83ab887cfa {
   position: relative;
-  width: 200px;
-  height: 32px;
+  height: 36px;
   border-start-start-radius: 6px;
   border-start-end-radius: 6px;
   border-end-start-radius: 6px;
@@ -905,13 +1049,11 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-  padding-block-start: 10px;
-  padding-block-end: 10px;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
-  flex-shrink: 0;
+  flex: 1;
 }
 
 /* Label */
@@ -920,7 +1062,6 @@
   width: 88px;
   height: 24px;
   background: #ffffff00;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -1025,8 +1166,7 @@
 }
 .value-3d83ab7d09cc {
   position: relative;
-  width: 200px;
-  height: 32px;
+  height: 36px;
   border-start-start-radius: 6px;
   border-start-end-radius: 6px;
   border-end-start-radius: 6px;
@@ -1035,13 +1175,11 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-  padding-block-start: 10px;
-  padding-block-end: 10px;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
-  flex-shrink: 0;
+  flex: 1;
 }
 
 /* Label */
@@ -1050,7 +1188,6 @@
   width: 88px;
   height: 24px;
   background: #ffffff00;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -1155,8 +1292,7 @@
 }
 .value-3d83ab71640c {
   position: relative;
-  width: 200px;
-  height: 32px;
+  height: 36px;
   border-start-start-radius: 6px;
   border-start-end-radius: 6px;
   border-end-start-radius: 6px;
@@ -1165,13 +1301,11 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-  padding-block-start: 10px;
-  padding-block-end: 10px;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
-  flex-shrink: 0;
+  flex: 1;
 }
 
 /* Label */
@@ -1180,7 +1314,6 @@
   width: 88px;
   height: 24px;
   background: #ffffff00;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
@@ -1286,15 +1419,12 @@
   border-start-end-radius: 8px;
   border-end-start-radius: 8px;
   border-end-end-radius: 8px;
-  overflow: hidden;
   display: flex;
   align-items: center;
   align-content: stretch;
   justify-content: center;
   padding-inline-start: 12px;
   padding-inline-end: 12px;
-  padding-block-start: 12px;
-  padding-block-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
   flex-shrink: 0;
@@ -1342,10 +1472,8 @@
   align-items: center;
   align-content: stretch;
   justify-content: start;
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-  padding-block-start: 10px;
-  padding-block-end: 10px;
+  padding-inline-start: 12px;
+  padding-inline-end: 12px;
   flex-direction: row;
   flex-wrap: nowrap;
   flex: 1;

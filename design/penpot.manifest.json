@@ -5,6 +5,8 @@
   "teamId": "774610b3-e050-8154-8008-3d2d27034751",
   "lastUpdated": "2026-06-27",
   "lastSyncedFrom": "penpot",
+  "lastSyncedTo": "local",
+  "syncNotes": "高级功能页：操作网格首行改为刷新芯片信息，调整 Action Grid/Storage List 宽度与间距",
   "status": "completed",
   "consistencyRules": {
     "appLayout": {
@@ -24,6 +26,8 @@
       "navColumnGap": 12,
       "iconSize": 8,
       "versionCentered": true,
+      "versionText": "v0.2.0",
+      "versionDynamic": true,
       "bottomSpacer": "Sidebar Spacer"
     },
     "leftPanel": {
@@ -48,6 +52,27 @@
       "table": "32x28",
       "inline": "36x36",
       "label": "..."
+    },
+    "inputBox": {
+      "height": 36,
+      "padding": { "horizontal": 12, "vertical": 0 },
+      "clipContent": false
+    },
+    "upgrade": {
+      "firmwareRowHeight": 68,
+      "infoCardHeight": 220,
+      "infoCardRowGap": 12
+    },
+    "advanced": {
+      "fileSectionHeight": 124,
+      "gridAreaHeight": 396,
+      "gridAreaColumnGap": 20,
+      "actionGridWidth": 444,
+      "actionGridRowGap": 8,
+      "actionGridColumnGap": 8,
+      "actionButtonSize": "100x36",
+      "storageListWidth": 140,
+      "sectorCardHeight": 72
     },
     "rowFlex": "use columnGap not rowGap"
   },
