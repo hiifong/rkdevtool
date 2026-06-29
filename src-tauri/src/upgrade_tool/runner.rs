@@ -186,8 +186,56 @@ fn uf_output_success(output: &str) -> bool {
         || lower.contains("download firmware success")
 }
 
+fn file_size_or_zero(path: &str) -> u64 {
+    std::fs::metadata(path).map(|meta| meta.len()).unwrap_or(0)
+}
+
+/// Sum payload bytes for write/flash commands (WL, UF, DI, …).
+fn write_payload_bytes(args: &[String]) -> u64 {
+    match args.first().map(String::as_str) {
+        Some("WL") => args.get(2).map(|p| file_size_or_zero(p)).unwrap_or(0),
+        Some("DB") | Some("UL") | Some("UF") => {
+            args.get(1).map(|p| file_size_or_zero(p)).unwrap_or(0)
+        }
+        Some("DI") => {
+            let mut total = 0u64;
+            let mut iter = args.iter().skip(1);
+            while let Some(flag) = iter.next() {
+                if flag.starts_with('-') {
+                    if let Some(path) = iter.next() {
+                        total = total.saturating_add(file_size_or_zero(path));
+                    }
+                }
+            }
+            total
+        }
+        _ => 0,
+    }
+}
+
+/// Timeout from image size (~5 MiB/s effective transfer + 120s base, 3 min–2 h).
+fn timeout_for_bytes(bytes: u64) -> Duration {
+    const MIN_SECS: u64 = 180;
+    const MAX_SECS: u64 = 7200;
+    const BASE_SECS: u64 = 120;
+    const BYTES_PER_SEC: u64 = 5 * 1024 * 1024;
+
+    if bytes == 0 {
+        return Duration::from_secs(MIN_SECS);
+    }
+
+    let transfer_secs = bytes.div_ceil(BYTES_PER_SEC);
+    let total = BASE_SECS.saturating_add(transfer_secs).clamp(MIN_SECS, MAX_SECS);
+    Duration::from_secs(total)
+}
+
 fn command_timeout(args: &[String]) -> Duration {
-    match args.first().map(|s| s.as_str()) {
+    let write_bytes = write_payload_bytes(args);
+    if write_bytes > 0 {
+        return timeout_for_bytes(write_bytes);
+    }
+
+    match args.first().map(String::as_str) {
         Some("UF") | Some("DI") => Duration::from_secs(900),
         Some("DB") | Some("UL") | Some("EF") => Duration::from_secs(300),
         _ => Duration::from_secs(180),
@@ -922,7 +970,55 @@ fn parse_devices(output: &str) -> Vec<RockusbDevice> {
 
 #[cfg(test)]
 mod tests {
-    use super::{command_matches_success, is_progress_line, parse_devices, TerminalLineBuffer};
+    use super::{
+        command_matches_success, is_progress_line, parse_devices, timeout_for_bytes,
+        write_payload_bytes, TerminalLineBuffer,
+    };
+    use std::fs;
+    use std::time::Duration;
+
+    #[test]
+    fn timeout_scales_with_file_size() {
+        let dir = std::env::temp_dir().join(format!("rkdevtool-timeout-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("image.img");
+        fs::write(&path, vec![0u8; 1024 * 1024]).unwrap();
+
+        let args = vec![
+            "WL".into(),
+            "0x0".into(),
+            path.display().to_string(),
+        ];
+        let bytes = write_payload_bytes(&args);
+        assert_eq!(bytes, 1024 * 1024);
+        assert_eq!(timeout_for_bytes(bytes), Duration::from_secs(180));
+
+        let large = 2 * 1024 * 1024 * 1024u64;
+        assert_eq!(timeout_for_bytes(large), Duration::from_secs(530));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn di_timeout_sums_partition_paths() {
+        let dir = std::env::temp_dir().join(format!("rkdevtool-di-timeout-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let boot = dir.join("boot.img");
+        let root = dir.join("root.img");
+        fs::write(&boot, vec![0u8; 512 * 1024]).unwrap();
+        fs::write(&root, vec![0u8; 1024 * 1024]).unwrap();
+
+        let args = vec![
+            "DI".into(),
+            "-boot".into(),
+            boot.display().to_string(),
+            "-root".into(),
+            root.display().to_string(),
+        ];
+        assert_eq!(write_payload_bytes(&args), 512 * 1024 + 1024 * 1024);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn terminal_buffer_full_progress_rewrite() {
