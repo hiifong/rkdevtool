@@ -5,10 +5,13 @@ import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
 import { useToolCommand, toolApi } from "../../composables/useToolCommand";
 import { pickFile } from "../../composables/useFilePicker";
+import { useI18n } from "../../i18n";
+import { logText } from "../../i18n/logText";
 import type { PartitionRow, StorageType } from "../../types/app";
 
 const { appendLog, busy } = useAppState();
 const { run } = useToolCommand();
+const { t } = useI18n();
 
 const storageOptions: StorageType[] = [
   "",
@@ -33,14 +36,14 @@ const storageIndexMap: Record<string, string> = {
 
 const forceByAddress = ref(false);
 const selectedRowId = ref(1);
-const loaderVersion = ref("—");
+const loaderVersion = ref("");
 let nextId = 2;
 
 const rows = ref<PartitionRow[]>([
   {
     id: 1,
     enabled: true,
-    storage: "EMMC",
+    storage: "",
     address: "0x00000000",
     name: "Loader",
     path: "",
@@ -63,7 +66,7 @@ function addRow() {
 }
 
 async function browsePath(row: PartitionRow) {
-  const path = await pickFile("选择镜像文件");
+  const path = await pickFile(t("download.pickImage"));
   if (!path) return;
   row.path = path;
   if (row.name.toLowerCase().includes("loader")) {
@@ -74,9 +77,9 @@ async function browsePath(row: PartitionRow) {
 async function refreshLoaderVersion(path: string) {
   try {
     const info = await toolApi.parseFirmware(path);
-    loaderVersion.value = info.loader_version || "—";
+    loaderVersion.value = info.loader_version || "";
   } catch {
-    loaderVersion.value = "—";
+    loaderVersion.value = "";
   }
 }
 
@@ -94,7 +97,7 @@ async function execute() {
           })),
           force_by_address: forceByAddress.value,
         }),
-      "执行",
+      logText("task.execute"),
     );
   } catch (err) {
     appendLog(String(err), "error");
@@ -105,14 +108,14 @@ async function switchStorage() {
   const row = rows.value.find((r) => r.id === selectedRowId.value);
   const index = row?.storage ? storageIndexMap[row.storage] : undefined;
   if (!index) {
-    appendLog("请先选择一行并设置存储类型", "error");
+    appendLog(logText("download.selectStorageFirst"), "error");
     return;
   }
 
   try {
     await run(
       () => toolApi.runAction("切换存储", { start_sector: index }),
-      "切换存储",
+      logText("task.switchStorage"),
     );
   } catch (err) {
     appendLog(String(err), "error");
@@ -121,7 +124,7 @@ async function switchStorage() {
 
 async function showPartitionList() {
   try {
-    const output = await run(() => toolApi.partitionList(), "设备分区表");
+    const output = await run(() => toolApi.partitionList(), logText("task.partitionList"));
     if (output) appendLog(output, "info");
   } catch (err) {
     appendLog(String(err), "error");
@@ -130,7 +133,7 @@ async function showPartitionList() {
 
 function clearRows() {
   rows.value = [];
-  appendLog("已清空配置");
+  appendLog(logText("download.cleared"));
 }
 </script>
 
@@ -140,17 +143,16 @@ function clearRows() {
       <div class="partition-table__header">
         <span class="col col--index">#</span>
         <span class="col col--check" />
-        <span class="col col--storage">存储</span>
-        <span class="col col--address">地址</span>
-        <span class="col col--name">名字</span>
-        <span class="col col--path">路径</span>
+        <span class="col col--storage">{{ t("download.storage") }}</span>
+        <span class="col col--address">{{ t("download.address") }}</span>
+        <span class="col col--name">{{ t("download.name") }}</span>
+        <span class="col col--path">{{ t("download.path") }}</span>
       </div>
 
       <div
         v-for="(row, index) in rows"
         :key="row.id"
         class="partition-table__row"
-        :class="{ 'partition-table__row--selected': selectedRowId === row.id }"
         @click="selectRow(row.id)"
       >
         <span class="col col--index">{{ index + 1 }}</span>
@@ -159,8 +161,8 @@ function clearRows() {
         </span>
         <span class="col col--storage">
           <select v-model="row.storage" class="storage-select" @click.stop>
-            <option v-for="opt in storageOptions" :key="opt" :value="opt">
-              {{ opt || " " }}
+            <option v-for="opt in storageOptions" :key="opt || 'empty'" :value="opt">
+              {{ opt }}
             </option>
           </select>
         </span>
@@ -176,21 +178,21 @@ function clearRows() {
       </div>
 
       <button type="button" class="partition-table__add" @click="addRow">
-        + 新增配置项
+        {{ t("download.addRow") }}
       </button>
     </div>
 
     <div class="toolbar">
-      <span class="toolbar__loader">Loader Ver: {{ loaderVersion }}</span>
+      <span class="toolbar__loader">{{ t("download.loaderVer") }}: {{ loaderVersion }}</span>
       <div class="toolbar__actions">
         <label class="toolbar__checkbox">
           <input v-model="forceByAddress" type="checkbox" :disabled="busy" />
-          强制按地址写
+          {{ t("download.forceByAddress") }}
         </label>
-        <AppButton variant="primary" :disabled="busy" @click="execute">执行</AppButton>
-        <AppButton :disabled="busy" @click="switchStorage">切换</AppButton>
-        <AppButton :disabled="busy" @click="showPartitionList">设备分区表</AppButton>
-        <AppButton :disabled="busy" @click="clearRows">清空</AppButton>
+        <AppButton variant="primary" :disabled="busy" @click="execute">{{ t("download.execute") }}</AppButton>
+        <AppButton :disabled="busy" @click="switchStorage">{{ t("download.switch") }}</AppButton>
+        <AppButton :disabled="busy" @click="showPartitionList">{{ t("download.partitionTable") }}</AppButton>
+        <AppButton :disabled="busy" @click="clearRows">{{ t("download.clear") }}</AppButton>
       </div>
     </div>
   </div>
@@ -233,11 +235,11 @@ function clearRows() {
   height: 52px;
   border-top: 1px solid var(--color-border);
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-.partition-table__row--selected {
-  background: var(--color-table-row-selected);
-  box-shadow: inset 2px 0 0 var(--color-table-row-selected-border);
+.partition-table__row:hover {
+  background: var(--color-surface-hover);
 }
 
 .col {

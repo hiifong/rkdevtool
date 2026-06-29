@@ -9,20 +9,22 @@ import PageHeader from "./PageHeader.vue";
 import DownloadPage from "../pages/DownloadPage.vue";
 import UpgradePage from "../pages/UpgradePage.vue";
 import AdvancedPage from "../pages/AdvancedPage.vue";
+import { useI18n } from "../../i18n";
 
 const state = provideAppState();
 const { activePage } = state;
 const { onDeviceChange } = useDevicePoll(2000, state);
 useToolBusyPoll(state);
+const { t } = useI18n();
 
 const pageTitle = computed(() => {
   switch (activePage.value) {
     case "download":
-      return "下载镜像";
+      return t("page.download");
     case "upgrade":
-      return "升级固件";
+      return t("page.upgrade");
     case "advanced":
-      return "高级功能";
+      return t("page.advanced");
   }
 });
 </script>

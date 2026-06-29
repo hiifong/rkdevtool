@@ -6,7 +6,7 @@
   "lastUpdated": "2026-06-27",
   "lastSyncedFrom": "penpot",
   "lastSyncedTo": "local",
-  "syncNotes": "三页统一紧凑间距：left-panel 上下 16px、区块间距 16px",
+  "syncNotes": "侧边栏底部三项 gap 8px，底边 12px，自然行高",
   "status": "completed",
   "consistencyRules": {
     "appLayout": {
@@ -30,10 +30,63 @@
       "navItemSize": "188x40",
       "navColumnGap": 12,
       "iconSize": 8,
+      "padding": { "top": 8, "horizontal": 16, "bottom": 12 },
+      "languageSwitcher": {
+        "name": "Language Switcher",
+        "position": "above Version Area",
+        "height": 28,
+        "columnGap": 8,
+        "justifyContent": "center",
+        "buttons": [
+          {
+            "name": "Lang / 中文",
+            "size": "52x28",
+            "borderRadius": 6,
+            "state": "active",
+            "background": "rgba(37, 99, 235, 0.2)",
+            "border": "1px solid #3B82F6",
+            "color": "#FFFFFF",
+            "fontSize": 12,
+            "fontWeight": 600
+          },
+          {
+            "name": "Lang / EN",
+            "size": "52x28",
+            "borderRadius": 6,
+            "state": "default",
+            "background": "transparent",
+            "border": "1px solid rgba(148, 163, 184, 0.35)",
+            "color": "#94A3B8",
+            "fontSize": 12,
+            "fontWeight": 600
+          }
+        ]
+      },
       "versionCentered": true,
       "versionText": "v0.2.0",
       "versionDynamic": true,
-      "bottomSpacer": "Sidebar Spacer"
+      "githubLink": {
+        "name": "GitHub Link",
+        "position": "below Version Area",
+        "url": "https://github.com/hiifong/rkdevtool",
+        "height": 24,
+        "columnGap": 6,
+        "justifyContent": "center",
+        "iconSize": 16,
+        "label": "GitHub",
+        "color": "#64748B",
+        "iconColor": "#94A3B8",
+        "fontSize": 12,
+        "fontWeight": 500
+      },
+      "bottomSpacer": "Sidebar Spacer",
+      "footer": {
+        "name": "Sidebar Footer",
+        "layout": "column",
+        "alignItems": "center",
+        "rowGap": 8,
+        "children": ["Language Switcher", "Version Area", "GitHub Link"]
+      },
     },
     "leftPanel": {
       "rowGap": 16,

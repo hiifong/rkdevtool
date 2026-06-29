@@ -8,10 +8,10 @@ use std::path::Path;
 pub fn extract_firmware_file(path: &str, output_dir: &str) -> Result<String, String> {
     let path = Path::new(path);
     if !path.exists() {
-        return Err(format!("文件不存在: {}", path.display()));
+        return Err(format!("File not found: {}", path.display()));
     }
 
-    std::fs::create_dir_all(output_dir).map_err(|e| format!("创建输出目录失败: {e}"))?;
+    std::fs::create_dir_all(output_dir).map_err(|e| format!("Failed to create output directory: {e}"))?;
 
     let mut file = File::open(path).map_err(|e| e.to_string())?;
     let mut signature = [0u8; 4];
@@ -32,7 +32,7 @@ pub fn extract_firmware_file(path: &str, output_dir: &str) -> Result<String, Str
                 let _ = std::fs::remove_file(Path::new(output_dir).join("BOOT"));
             }
         }
-        _ => return Err("不支持的固件格式（需要 RKFW 或 RKAF/update.img）".to_string()),
+        _ => return Err("Unsupported firmware format (RKFW or RKAF/update.img required)".to_string()),
     }
 
     Ok(log)
@@ -52,7 +52,7 @@ fn push_log(log: &mut String, line: impl AsRef<str>) {
 
 fn unpack_rkfw(buf: &[u8], output_dir: &str, log: &mut String) -> Result<(), String> {
     if buf.len() < 0x29 {
-        return Err("RKFW 文件头不完整".to_string());
+        return Err("Incomplete RKFW header".to_string());
     }
 
     push_log(log, "RKFW signature detected");
@@ -71,7 +71,7 @@ fn unpack_rkfw(buf: &[u8], output_dir: &str, log: &mut String) -> Result<(), Str
     let update_size = u32::from_le_bytes(buf[0x25..0x29].try_into().unwrap()) as usize;
 
     if boot_offset + boot_size > buf.len() {
-        return Err("RKFW Boot 区域超出文件范围".to_string());
+        return Err("RKFW Boot region is out of file range".to_string());
     }
 
     let boot_path = Path::new(output_dir).join("BOOT");
@@ -86,11 +86,11 @@ fn unpack_rkfw(buf: &[u8], output_dir: &str, log: &mut String) -> Result<(), Str
     write_bytes(&boot_path, &buf[boot_offset..boot_offset + boot_size])?;
 
     if update_offset + update_size > buf.len() {
-        return Err("RKFW 内嵌 update.img 区域超出文件范围".to_string());
+        return Err("RKFW embedded update.img region is out of file range".to_string());
     }
 
     if &buf[update_offset..update_offset + 4] != RKAF_SIGNATURE {
-        return Err("RKFW 内未找到 embedded RKAF update.img".to_string());
+        return Err("RKFW does not contain embedded RKAF update.img".to_string());
     }
 
     let embedded_path = Path::new(output_dir).join("embedded-update.img");
@@ -118,7 +118,7 @@ fn unpack_rkaf(path: &Path, output_dir: &str, log: &mut String) -> Result<(), St
     let header = UpdateHeader::from_bytes(header_buf.as_mut());
     let magic_str = std::str::from_utf8(&header.magic).map_err(|e| e.to_string())?;
     if magic_str != RKAFP_MAGIC {
-        return Err("无效的 RKAF 文件头".to_string());
+        return Err("Invalid RKAF header".to_string());
     }
 
     let filesize = fp.metadata().map_err(|e| e.to_string())?.len();

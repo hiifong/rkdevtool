@@ -16,7 +16,7 @@ pub struct FirmwareInfo {
 pub fn parse_firmware_info(path: &str) -> Result<FirmwareInfo, String> {
     let path = Path::new(path);
     if !path.exists() {
-        return Err(format!("文件不存在: {}", path.display()));
+        return Err(format!("File not found: {}", path.display()));
     }
 
     let mut file = File::open(path).map_err(|e| e.to_string())?;
@@ -24,19 +24,19 @@ pub fn parse_firmware_info(path: &str) -> Result<FirmwareInfo, String> {
     file.read_to_end(&mut buf).map_err(|e| e.to_string())?;
 
     if buf.len() < 4 {
-        return Err("文件过短，无法识别固件格式".to_string());
+        return Err("File is too short to detect firmware format".to_string());
     }
 
     match &buf[0..4] {
         RKFW_SIGNATURE => parse_rkfw(&buf),
         RKAF_SIGNATURE => parse_rkaf(&buf, path),
-        _ => Err("不支持的固件格式（需要 RKFW 或 RKAF/update.img）".to_string()),
+        _ => Err("Unsupported firmware format (RKFW or RKAF/update.img required)".to_string()),
     }
 }
 
 fn parse_rkfw(buf: &[u8]) -> Result<FirmwareInfo, String> {
     if buf.len() < 0x29 {
-        return Err("RKFW 文件头不完整".to_string());
+        return Err("Incomplete RKFW header".to_string());
     }
 
     let mut firmware_version = format_rkfw_version(buf);
@@ -86,7 +86,7 @@ fn parse_rkfw_loader_version(buf: &[u8]) -> String {
 fn parse_rkaf(buf: &[u8], path: &Path) -> Result<FirmwareInfo, String> {
     let header_size = mem::size_of::<UpdateHeader>();
     if buf.len() < header_size {
-        return Err("RKAF 文件头不完整".to_string());
+        return Err("Incomplete RKAF header".to_string());
     }
 
     let header = UpdateHeader::from_bytes(&buf[..header_size]);

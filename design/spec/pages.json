@@ -14,6 +14,28 @@
     { "id": "upgrade", "label": "升级固件", "icon": "upgrade", "route": "/upgrade" },
     { "id": "advanced", "label": "高级功能", "icon": "settings", "route": "/advanced" }
   ],
+  "sidebar": {
+    "structure": ["logo", "nav", "spacer", "footer"],
+    "padding": { "top": 8, "horizontal": 16, "bottom": 12 },
+    "footer": {
+      "layout": "column",
+      "alignItems": "center",
+      "gap": 8,
+      "children": ["language-switcher", "version", "github-link"]
+    },
+    "languageSwitcher": {
+      "labels": ["中文", "EN"],
+      "defaultLocale": "zh-CN",
+      "buttonSize": "52x28",
+      "gap": 8
+    },
+    "githubLink": {
+      "url": "https://github.com/hiifong/rkdevtool",
+      "label": "GitHub",
+      "iconSize": 16,
+      "gap": 6
+    }
+  },
   "pages": {
     "download": {
       "title": "下载镜像",

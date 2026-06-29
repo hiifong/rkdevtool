@@ -94,7 +94,7 @@ fn resolve_tool_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
 
     let tool_path = work_dir.join(tool_name);
     if !tool_path.exists() {
-        return Err(format!("找不到 upgrade_tool: {}", tool_path.display()));
+        return Err(format!("upgrade_tool not found: {}", tool_path.display()));
     }
 
     Ok((tool_path, work_dir))
@@ -203,7 +203,7 @@ fn wait_for_child(child: &mut Child, timeout: Duration) -> Result<std::process::
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(format!(
-                    "操作超时（{} 秒），请重新进入 Maskrom 并检查 USB 连接后重试",
+                    "Operation timed out after {} seconds; re-enter Maskrom and check the USB connection, then retry",
                     timeout.as_secs()
                 ));
             }
@@ -555,7 +555,7 @@ fn command_matches_success(args: &[String], output: &str, exit_ok: bool) -> bool
 }
 
 fn tool_error_summary(output: &str) -> String {
-    let mut last = String::from("未知错误");
+    let mut last = String::from("Unknown error");
     for line in output.lines() {
         let line = strip_ansi(line);
         if line.is_empty() {
@@ -686,7 +686,7 @@ fn try_spawn_with_script(
     }
 
     let mut child = cmd.spawn().map_err(|e| e.to_string())?;
-    let stdout = child.stdout.take().ok_or("无法读取 stdout")?;
+    let stdout = child.stdout.take().ok_or("Failed to read stdout")?;
     let stderr = child.stderr.take();
     Ok(SpawnedTool::Pipe {
         child,
@@ -710,8 +710,8 @@ fn spawn_tool_pipe(
     apply_windows_hidden(&mut cmd);
 
     let mut child = cmd.spawn()
-        .map_err(|e| format!("启动 upgrade_tool 失败: {e}"))?;
-    let stdout = child.stdout.take().ok_or("无法读取 stdout")?;
+        .map_err(|e| format!("Failed to start upgrade_tool: {e}"))?;
+    let stdout = child.stdout.take().ok_or("Failed to read stdout")?;
     let stderr = child.stderr.take();
     Ok(SpawnedTool::Pipe {
         child,
@@ -763,9 +763,9 @@ fn run_tool_sync(
 
             let mut output = stdout_handle
                 .join()
-                .map_err(|_| "读取 stdout 线程异常".to_string())??;
+                .map_err(|_| "stdout reader thread panicked".to_string())??;
             if let Some(handle) = stderr_handle {
-                output.push_str(&handle.join().map_err(|_| "读取 stderr 线程异常".to_string())??);
+                output.push_str(&handle.join().map_err(|_| "stderr reader thread panicked".to_string())??);
             }
 
             Ok(CommandResult {
@@ -803,7 +803,7 @@ fn run_ld_sync(tool_path: &Path, work_dir: &Path) -> Result<String, String> {
 
     let output = cmd
         .output()
-        .map_err(|e| format!("启动 upgrade_tool 失败: {e}"))?;
+        .map_err(|e| format!("Failed to start upgrade_tool: {e}"))?;
 
     let mut combined = String::new();
     let stderr = strip_ansi(&String::from_utf8_lossy(&output.stderr));
@@ -1041,7 +1041,7 @@ mod tests {
 fn ensure_not_busy(state: &State<'_, AppState>) -> Result<(), String> {
     let busy = state.busy.lock().map_err(|e| e.to_string())?;
     if *busy {
-        return Err("已有任务正在执行，请稍候".to_string());
+        return Err("Another task is already running; please wait".to_string());
     }
     Ok(())
 }
@@ -1135,7 +1135,7 @@ pub async fn partition_list(app: AppHandle, state: State<'_, AppState>) -> Resul
     .await?;
 
     if !result.success {
-        return Err("读取分区表失败".to_string());
+        return Err("Failed to read partition table".to_string());
     }
     Ok(result.output)
 }
@@ -1161,20 +1161,20 @@ pub async fn upgrade_firmware(
         let detail = if output_has_error(&result.output) {
             tool_error_summary(&result.output)
         } else if result.output.trim().is_empty() {
-            "upgrade_tool 未返回输出（请确认固件路径有效且进程未被安全软件拦截）".to_string()
+            "upgrade_tool produced no output (check firmware path and security software)".to_string()
         } else {
-            "未检测到 Upgrade firmware ok / Success".to_string()
+            "Upgrade firmware ok / Success not detected".to_string()
         };
         let hint = if detail.to_ascii_lowercase().contains("read chip info fail") {
-            "（Maskrom 下需先完成 Boot 下载；若仍失败，请确认 Mac 版 upgrade_tool v2.13 是否支持该芯片，或改用 Linux v2.44+ 工具）"
+            " (In Maskrom, download Boot first; on Mac v2.13 try Linux v2.44+ if this chip is unsupported)"
         } else if detail.contains("ftruncate") {
-            "（请确认选择的是 update.img 固件包，不要用 download.bin / Loader 文件）"
-        } else if detail == "未检测到 Upgrade firmware ok / Success" {
-            "（若设备无响应，请重新进入 Maskrom 后重试）"
+            " (Use update.img firmware package, not download.bin / Loader file)"
+        } else if detail == "Upgrade firmware ok / Success not detected" {
+            " (If the device is unresponsive, re-enter Maskrom and retry)"
         } else {
             ""
         };
-        return Err(format!("升级固件失败: {detail}{hint}"));
+        return Err(format!("Firmware upgrade failed: {detail}{hint}"));
     }
     Ok(())
 }
@@ -1191,14 +1191,14 @@ pub async fn download_boot(app: AppHandle, state: State<'_, AppState>, path: Str
         let detail = if output_has_error(&result.output) {
             tool_error_summary(&result.output)
         } else {
-            "upgrade_tool 返回非零退出码".to_string()
+            "upgrade_tool exited with non-zero status".to_string()
         };
         let hint = if detail.to_ascii_lowercase().contains("ddr") || detail.contains("请检查") {
-            "（请检查 DDR/主控与 USB 连接，重新进入 Maskrom 后重试）"
+            " (Check DDR/chip and USB connection, re-enter Maskrom and retry)"
         } else {
-            "（请使用 Loader 文件如 MiniLoaderAll.bin；download.bin 需确认是否为正确 Loader）"
+            " (Use a Loader file such as MiniLoaderAll.bin; verify download.bin is a valid Loader)"
         };
-        return Err(format!("下载 Boot 失败: {detail}。{hint}"));
+        return Err(format!("Boot download failed: {detail}.{hint}"));
     }
     Ok(())
 }
@@ -1226,7 +1226,7 @@ pub async fn download_execute(
         .collect();
 
     if rows.is_empty() {
-        return Err("请至少启用一行并填写镜像路径".to_string());
+        return Err("Enable at least one row and provide an image path".to_string());
     }
 
     let force = payload.force_by_address;
@@ -1235,12 +1235,12 @@ pub async fn download_execute(
             for row in &rows {
                 let addr = row.address.trim();
                 if addr.is_empty() {
-                    return Err(format!("按地址写入需要填写地址: {}", row.name));
+                    return Err(format!("Address is required for force-by-address write: {}", row.name));
                 }
                 let args = vec![String::from("WL"), addr.to_string(), row.path.clone()];
                 let r = run_tool_sync(app, tool, dir, device, &args, false)?;
                 if !r.success {
-                    return Err(format!("写入失败: {}", row.name));
+                    return Err(format!("Write failed: {}", row.name));
                 }
             }
             return Ok(CommandResult {
@@ -1257,7 +1257,7 @@ pub async fn download_execute(
                 }
                 let r = run_tool_sync(app, tool, dir, device, &args, false)?;
                 if !r.success {
-                    return Err("烧写 Loader 失败".to_string());
+                    return Err("Failed to flash Loader".to_string());
                 }
             }
         }
@@ -1277,7 +1277,7 @@ pub async fn download_execute(
         if di_args.len() > 1 {
             let r = run_tool_sync(app, tool, dir, device, &di_args, false)?;
             if !r.success {
-                return Err("烧录镜像失败".to_string());
+                return Err("Failed to flash image".to_string());
             }
         }
 
@@ -1289,9 +1289,30 @@ pub async fn download_execute(
     .await?;
 
     if !result.success {
-        return Err("执行失败".to_string());
+        return Err("Execution failed".to_string());
     }
     Ok(())
+}
+
+fn action_label_en(action: &str) -> &'static str {
+    match action {
+        "读取FlashID" => "Read Flash ID",
+        "读取Flash信息" => "Read Flash info",
+        "读取Chip信息" => "Read chip info",
+        "读取Capability" => "Read capability",
+        "测试设备" => "Test device",
+        "重启设备" => "Reboot device",
+        "进入Maskrom" => "Enter Maskrom",
+        "切换存储" => "Switch storage",
+        "获取当前存储" => "Get current storage",
+        "清空序列号" => "Clear serial",
+        "检测安全模式" => "Detect secure mode",
+        "导出串口日志" => "Export serial log",
+        "擦除扇区" => "Erase sector",
+        "擦除所有" => "Erase all",
+        "切换USB3" => "Switch USB3",
+        _ => "Action",
+    }
 }
 
 fn action_to_args(action: &str, params: &ActionParams) -> Result<Vec<String>, String> {
@@ -1331,11 +1352,11 @@ fn action_to_args(action: &str, params: &ActionParams) -> Result<Vec<String>, St
                 .boot_path
                 .clone()
                 .filter(|p| !p.is_empty())
-                .ok_or("擦除所有需要填写 Boot/Loader 路径")?;
+                .ok_or("Erase all requires a Boot/Loader path")?;
             vec!["EF".into(), loader]
         }
         "切换USB3" => vec!["SSD".into()],
-        _ => return Err(format!("暂不支持的操作: {action}")),
+        _ => return Err(format!("Unsupported action: {}", action_label_en(action))),
     })
 }
 
@@ -1360,7 +1381,7 @@ pub async fn run_action(
     .await?;
 
     if !result.success {
-        return Err(format!("{action} 失败"));
+        return Err(format!("{} failed", action_label_en(&action)));
     }
     Ok(result.output)
 }

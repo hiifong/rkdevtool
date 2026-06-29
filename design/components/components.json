@@ -60,6 +60,59 @@
       "hover": { "background": "{color.sidebar-hover}" }
     }
   },
+  "LangButton": {
+    "minWidth": "52px",
+    "height": "28px",
+    "borderRadius": "6px",
+    "fontSize": "12px",
+    "fontWeight": "600",
+    "states": {
+      "default": {
+        "background": "transparent",
+        "color": "#94A3B8",
+        "border": "1px solid rgba(148, 163, 184, 0.35)"
+      },
+      "active": {
+        "background": "rgba(37, 99, 235, 0.2)",
+        "color": "#FFFFFF",
+        "border": "1px solid #3B82F6"
+      },
+      "hover": {
+        "background": "{color.sidebar-hover}",
+        "color": "#E2E8F0"
+      }
+    }
+  },
+  "LanguageSwitcher": {
+    "extends": "LangButton",
+    "layout": "row",
+    "gap": "8px",
+    "justifyContent": "center",
+    "options": ["中文", "EN"]
+  },
+  "SidebarFooter": {
+    "layout": "column",
+    "alignItems": "center",
+    "gap": "8px",
+    "children": ["LanguageSwitcher", "Version", "GitHubLink"]
+  },
+  "GitHubLink": {
+    "layout": "row",
+    "gap": "6px",
+    "justifyContent": "center",
+    "alignItems": "center",
+    "iconSize": "16px",
+    "fontSize": "12px",
+    "fontWeight": "500",
+    "color": "#64748B",
+    "iconColor": "#94A3B8",
+    "url": "https://github.com/hiifong/rkdevtool",
+    "label": "GitHub",
+    "hover": {
+      "color": "#E2E8F0",
+      "background": "{color.sidebar-hover}"
+    }
+  },
   "Input": {
     "height": "36px",
     "borderRadius": "{dimension.border-radius-md}",

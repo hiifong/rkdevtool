@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useAppState } from "../../composables/useAppState";
+import { useI18n } from "../../i18n";
 
 const { logs, clearLogs } = useAppState();
+const { t } = useI18n();
 
 const contentRef = ref<HTMLElement | null>(null);
 const stickToBottom = ref(true);
@@ -39,8 +41,8 @@ function handleClear() {
 <template>
   <aside class="log-panel">
     <header class="log-panel__header">
-      <span>输出日志</span>
-      <button type="button" class="log-panel__clear" @click="handleClear">清空</button>
+      <span>{{ t("log.title") }}</span>
+      <button type="button" class="log-panel__clear" @click="handleClear">{{ t("log.clear") }}</button>
     </header>
     <div ref="contentRef" class="log-panel__content" @scroll="onScroll">
       <p

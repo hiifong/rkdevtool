@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useAppState } from "../../composables/useAppState";
+import { useI18n } from "../../i18n";
 
 const emit = defineEmits<{
   deviceChange: [locationId: string];
 }>();
 
 const { deviceState, devices, selectedDeviceId, busy } = useAppState();
+const { t } = useI18n();
 
 const statusLabel = computed(() => {
   switch (deviceState.value) {
     case "connected":
-      return "发现一个 MASKROM 设备";
+      return t("status.maskrom");
     case "loader":
-      return "发现一个 LOADER 设备";
+      return t("status.loader");
     default:
-      return "没有发现设备";
+      return t("status.disconnected");
   }
 });
 
@@ -41,7 +43,7 @@ function onSelect(event: Event) {
     <div class="status-bar__left">
       <span class="status-bar__dot" :style="{ background: dotColor }" />
       <span class="status-bar__text">{{ statusLabel }}</span>
-      <span v-if="busy" class="status-bar__busy">执行中…</span>
+      <span v-if="busy" class="status-bar__busy">{{ t("status.busy") }}</span>
     </div>
     <select
       class="status-bar__select"
@@ -49,7 +51,7 @@ function onSelect(event: Event) {
       :disabled="devices.length === 0"
       @change="onSelect"
     >
-      <option v-if="devices.length === 0" value="">无设备</option>
+      <option v-if="devices.length === 0" value="">{{ t("status.noDevice") }}</option>
       <option v-for="device in devices" :key="device.location_id" :value="device.location_id">
         {{ device.label }}
       </option>
