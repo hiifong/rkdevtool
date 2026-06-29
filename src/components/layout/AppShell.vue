@@ -34,15 +34,13 @@ const pageTitle = computed(() => {
 
       <div class="main-area">
         <PageHeader :title="pageTitle" />
-        <div class="content-row">
-          <div class="left-panel">
-            <DownloadPage v-if="activePage === 'download'" />
-            <UpgradePage v-else-if="activePage === 'upgrade'" />
-            <AdvancedPage v-else />
-          </div>
-          <LogPanel />
+        <div class="left-panel">
+          <DownloadPage v-if="activePage === 'download'" />
+          <UpgradePage v-else-if="activePage === 'upgrade'" />
+          <AdvancedPage v-else />
         </div>
       </div>
+      <LogPanel />
     </div>
     <StatusBar @device-change="onDeviceChange" />
   </div>
@@ -68,23 +66,17 @@ const pageTitle = computed(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-.content-row {
-  display: flex;
-  flex: 1;
   min-height: 0;
-  min-width: 0;
-  overflow: hidden;
 }
 
 .left-panel {
-  flex: 1 1 0;
+  flex: 1;
   min-width: 0;
-  padding: 24px;
+  min-height: 0;
+  padding: 16px 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   overflow: auto;
 }
 </style>

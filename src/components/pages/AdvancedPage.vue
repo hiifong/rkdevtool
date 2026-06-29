@@ -219,7 +219,7 @@ async function extractFirmware() {
 .advanced-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   width: 100%;
   max-width: 652px;
 }

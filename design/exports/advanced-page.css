@@ -194,6 +194,21 @@
   flex-shrink: 0;
 }
 
+/* Log Panel */
+.log-panel-3d83bfb4c8d0 {
+  position: relative;
+  width: 360px;
+  height: 100%;
+  background: #0f172aFF;
+  overflow: hidden;
+  display: flex;
+  align-items: start;
+  align-content: stretch;
+  justify-content: start;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
 /* Main Area */
 .main-area-3d83be7c0f6e {
   position: relative;
@@ -228,85 +243,11 @@
   flex-shrink: 0;
 }
 
-/* Content Row */
-.content-ro-3d83be7c0f75 {
-  position: relative;
-  width: 1060px;
-  height: 688px;
-  background: #f1f5f9FF;
-  overflow: hidden;
-  display: flex;
-  align-items: start;
-  align-content: stretch;
-  justify-content: start;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-}
-
-/* Header */
-.header-3d83be7c0f76 > svg {
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  transform: translate(0px,0px);
-}
-.header-3d83be7c0f76 {
-  position: relative;
-  width: 1060px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  align-content: stretch;
-  justify-content: start;
-  padding-inline-start: 20px;
-  padding-inline-end: 20px;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-}
-
-/* Log Panel */
-.log-panel-3d83bfb4c8d0 {
-  position: relative;
-  width: 360px;
-  height: 688px;
-  background: #0f172aFF;
-  overflow: hidden;
-  display: flex;
-  align-items: start;
-  align-content: stretch;
-  justify-content: start;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-}
-
-/* Left Panel */
-.left-panel-3d83be9e5756 {
-  position: relative;
-  width: 700px;
-  height: 688px;
-  background: #f1f5f9FF;
-  display: flex;
-  align-items: start;
-  align-content: stretch;
-  justify-content: start;
-  row-gap: 24px;
-  padding-inline-start: 24px;
-  padding-inline-end: 24px;
-  padding-block-start: 24px;
-  padding-block-end: 24px;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-}
-
 /* Log Content */
 .log-conten-3d83bfbd08ef {
   position: relative;
   width: 360px;
-  height: 620px;
+  height: 700px;
   background: #0f172aFF;
   overflow: hidden;
   display: flex;
@@ -556,6 +497,47 @@
   font-family: "Inter";
   font-style: normal;
   font-weight: 600;
+}
+
+/* Left Panel */
+.left-panel-3d83be9e5756 {
+  position: relative;
+  width: 100%;
+  background: #f1f5f9FF;
+  display: flex;
+  align-items: start;
+  align-content: stretch;
+  justify-content: start;
+  row-gap: 16px;
+  padding-inline-start: 24px;
+  padding-inline-end: 24px;
+  padding-block-start: 16px;
+  padding-block-end: 16px;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  flex: 1;
+}
+
+/* Header */
+.header-3d83be7c0f76 > svg {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transform: translate(0px,0px);
+}
+.header-3d83be7c0f76 {
+  position: relative;
+  width: 700px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  align-content: stretch;
+  justify-content: start;
+  padding-inline-start: 20px;
+  padding-inline-end: 20px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 /* Sector Card */

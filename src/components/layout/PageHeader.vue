@@ -13,6 +13,7 @@ defineProps<{ title: string }>();
   height: var(--header-height);
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   padding: 0 20px;
   flex-shrink: 0;
 }

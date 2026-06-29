@@ -5,9 +5,8 @@
     "version": "v0.2.0",
     "layout": {
       "type": "sidebar-main",
-      "structure": ["sidebar", "main-area", "status-bar"],
-      "mainArea": ["page-header", "content-split"],
-      "contentSplit": ["left-panel", "log-panel"]
+      "structure": ["sidebar", "main-area", "log-panel", "status-bar"],
+      "mainArea": ["page-header", "left-panel"],
     }
   },
   "navigation": [
@@ -19,6 +18,10 @@
     "download": {
       "title": "下载镜像",
       "description": "配置分区镜像并按地址烧录到设备",
+      "layout": {
+        "pageGap": 16,
+        "panelPadding": { "vertical": 16, "horizontal": 24 }
+      },
       "components": {
         "partitionTable": {
           "type": "data-table",
@@ -57,11 +60,18 @@
     "upgrade": {
       "title": "升级固件",
       "description": "选择固件包并一键升级设备",
+      "layout": {
+        "pageGap": 16,
+        "panelPadding": { "vertical": 16, "horizontal": 24 }
+      },
       "components": {
         "firmwareRow": {
           "type": "inline-action-row",
           "height": 68,
           "padding": { "horizontal": 16, "vertical": 16 },
+          "background": "surface",
+          "border": true,
+          "borderRadius": 12,
           "items": [
             { "id": "firmware-label", "label": "固件", "type": "label" },
             { "id": "firmware-path", "type": "file-path-input", "flex": "fill" },
@@ -93,6 +103,10 @@
     "advanced": {
       "title": "高级功能",
       "description": "设备调试、Flash 操作和底层功能",
+      "layout": {
+        "pageGap": 16,
+        "panelPadding": { "vertical": 16, "horizontal": 24 }
+      },
       "components": {
         "fileSection": {
           "height": 124,

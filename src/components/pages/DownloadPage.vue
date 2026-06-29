@@ -200,9 +200,9 @@ function clearRows() {
 .download-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   width: 100%;
-  max-width: 648px;
+  max-width: 652px;
 }
 
 .partition-table {

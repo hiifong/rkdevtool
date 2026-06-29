@@ -120,15 +120,19 @@ onMounted(() => {
 .upgrade-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   width: 100%;
-  max-width: 648px;
+  max-width: 652px;
 }
 
 .firmware-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 16px;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .firmware-row__label {

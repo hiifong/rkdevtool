@@ -6,13 +6,18 @@
   "lastUpdated": "2026-06-27",
   "lastSyncedFrom": "penpot",
   "lastSyncedTo": "local",
-  "syncNotes": "高级功能页：操作网格首行改为刷新芯片信息，调整 Action Grid/Storage List 宽度与间距",
+  "syncNotes": "三页统一紧凑间距：left-panel 上下 16px、区块间距 16px",
   "status": "completed",
   "consistencyRules": {
     "appLayout": {
-      "structure": "App(column) > AppBody(row: Sidebar + MainArea) + StatusBar",
+      "structure": "App(column) > AppBody(row: Sidebar + MainArea[Header + LeftPanel] + LogPanel) + StatusBar",
       "appSize": "1280x800",
       "bodyHeight": 744,
+      "mainAreaWidth": 700,
+      "logPanelWidth": 360,
+      "logPanelHeight": 744,
+      "headerHeight": 56,
+      "headerAlign": "start",
       "statusBarHeight": 56
     },
     "statusBar": {
@@ -31,8 +36,8 @@
       "bottomSpacer": "Sidebar Spacer"
     },
     "leftPanel": {
-      "rowGap": 24,
-      "padding": 24,
+      "rowGap": 16,
+      "padding": { "vertical": 16, "horizontal": 24 },
       "contentWidth": 652,
       "clipContent": false
     },
