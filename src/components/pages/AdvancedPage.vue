@@ -6,7 +6,7 @@ import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
 import { useToolCommand, toolApi } from "../../composables/useToolCommand";
 import { pickFile } from "../../composables/useFilePicker";
-import { buildExtractOutputDir } from "../../composables/useExtractPath";
+import { buildExtractOutputDir, buildSerialLogPath } from "../../composables/useExtractPath";
 import { ADVANCED_ACTIONS } from "../../constants/advancedActions";
 import { useI18n } from "../../i18n";
 import { logText } from "../../i18n/logText";
@@ -55,15 +55,38 @@ function actionParams(command: string) {
   if (command === "擦除所有") {
     return { boot_path: bootPath.value };
   }
-  if (command === "导出串口日志") {
-    return { output_path: "serial.log" };
-  }
   return undefined;
+}
+
+async function exportSerialLog(labelKey: string) {
+  const parentDir = await open({
+    directory: true,
+    multiple: false,
+    title: t("advanced.pickSerialLogDir"),
+  });
+
+  if (!parentDir || Array.isArray(parentDir)) return;
+
+  const outputPath = await buildSerialLogPath(parentDir);
+
+  try {
+    await run(
+      () => toolApi.runAction("导出串口日志", { output_path: outputPath }),
+      logText(labelKey),
+    );
+  } catch (err) {
+    appendLog(String(err), "error");
+  }
 }
 
 async function runAction(command: string, labelKey: string) {
   if (command === "导出镜像") {
     appendLog(logText("advanced.exportImageTodo"), "error");
+    return;
+  }
+
+  if (command === "导出串口日志") {
+    await exportSerialLog(labelKey);
     return;
   }
 

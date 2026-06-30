@@ -72,6 +72,7 @@ export default {
     pickBoot: "选择 Boot 文件",
     pickFirmware: "选择固件文件",
     pickExtractDir: "选择解包输出位置",
+    pickSerialLogDir: "选择串口日志保存位置",
     selectBootFirst: "请先选择 Boot 路径",
     selectFirmwareFirst: "请先选择固件路径",
     downloadBootSuccess: "下载 Boot 成功",

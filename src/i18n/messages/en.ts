@@ -72,6 +72,7 @@ export default {
     pickBoot: "Select Boot file",
     pickFirmware: "Select firmware file",
     pickExtractDir: "Select extract output folder",
+    pickSerialLogDir: "Select serial log output folder",
     selectBootFirst: "Select Boot path first",
     selectFirmwareFirst: "Select firmware path first",
     downloadBootSuccess: "Boot download succeeded",

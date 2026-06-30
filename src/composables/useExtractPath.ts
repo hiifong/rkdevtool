@@ -15,9 +15,17 @@ export function buildExtractDirName(firmwarePath: string): string {
   return `rkdevtool_${sanitizeFirmwareName(firmwarePath)}_${formatExtractTimestamp()}`;
 }
 
+export function buildSerialLogFileName(date = new Date()): string {
+  return `rkdevtool_serial_${formatExtractTimestamp(date)}.log`;
+}
+
 export async function buildExtractOutputDir(
   parentDir: string,
   firmwarePath: string,
 ): Promise<string> {
   return join(parentDir, buildExtractDirName(firmwarePath));
+}
+
+export async function buildSerialLogPath(parentDir: string): Promise<string> {
+  return join(parentDir, buildSerialLogFileName());
 }
