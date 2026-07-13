@@ -4,20 +4,53 @@ import { toolApi } from "./useToolCommand";
 import { useAppState, type AppState } from "./useAppState";
 import type { LogLevel } from "../types/app";
 import type { RockusbDevice, ToolLogEvent } from "../types/tool";
+import { playDeviceConnected, playDeviceDisconnected } from "../utils/deviceSounds";
 
-export function useDevicePoll(intervalMs = 2000, appState?: AppState) {
+function deviceKeySet(list: RockusbDevice[]): Set<string> {
+  return new Set(list.map((d) => d.location_id));
+}
+
+/** Subscribe to backend USB hotplug events (no polling). */
+export function useDevicePoll(_intervalMs = 2000, appState?: AppState) {
   const { appendLog, setDevices, selectedDeviceId, busy } = appState ?? useAppState();
 
-  let timer: ReturnType<typeof setInterval> | null = null;
   const unlisteners: Array<() => void> = [];
+  let hotplugPrimed = false;
+  let prevKeys = new Set<string>();
+
+  function applyDevices(list: RockusbDevice[], playSound: boolean) {
+    const nextKeys = deviceKeySet(list);
+    if (playSound && hotplugPrimed) {
+      let added = 0;
+      let removed = 0;
+      for (const id of nextKeys) {
+        if (!prevKeys.has(id)) added += 1;
+      }
+      for (const id of prevKeys) {
+        if (!nextKeys.has(id)) removed += 1;
+      }
+      if (added > 0 && removed === 0) {
+        playDeviceConnected();
+      } else if (removed > 0 && added === 0) {
+        playDeviceDisconnected();
+      } else if (added > 0 && removed > 0) {
+        // Swap / Maskrom↔Loader re-enumerate: treat as connect cue
+        playDeviceConnected();
+      }
+    }
+    hotplugPrimed = true;
+    prevKeys = nextKeys;
+    setDevices(list);
+  }
 
   async function refreshDevices() {
     if (busy.value) return;
     try {
       const list = await toolApi.listDevices();
-      setDevices(list);
+      // Manual / startup resync: update list without sounding
+      applyDevices(list, false);
     } catch {
-      // 静默：无设备或工具不可用时保持 disconnected
+      // 静默：无设备或 USB 枚举失败时保持 disconnected
     }
   }
 
@@ -42,7 +75,7 @@ export function useDevicePoll(intervalMs = 2000, appState?: AppState) {
 
       unlisteners.push(
         await listen<RockusbDevice[]>("devices-updated", (event) => {
-          setDevices(event.payload);
+          applyDevices(event.payload, true);
         }),
       );
     } catch (err) {
@@ -50,7 +83,6 @@ export function useDevicePoll(intervalMs = 2000, appState?: AppState) {
     }
 
     await refreshDevices();
-    timer = setInterval(refreshDevices, intervalMs);
 
     watch(busy, (next, prev) => {
       if (prev && !next) {
@@ -68,7 +100,6 @@ export function useDevicePoll(intervalMs = 2000, appState?: AppState) {
   }
 
   onUnmounted(() => {
-    if (timer) clearInterval(timer);
     unlisteners.forEach((off) => off());
     document.removeEventListener("visibilitychange", onVisibilityChange);
   });
@@ -76,7 +107,6 @@ export function useDevicePoll(intervalMs = 2000, appState?: AppState) {
   async function onDeviceChange(locationId: string) {
     selectedDeviceId.value = locationId;
     await toolApi.selectDevice(locationId);
-    await refreshDevices();
   }
 
   return { refreshDevices, onDeviceChange };

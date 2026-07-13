@@ -1,5 +1,9 @@
 use std::sync::Mutex;
 
+use tokio::sync::mpsc;
+
+use crate::devices::HotplugCmd;
+
 /// (location_id, mode, label)
 pub type DeviceSnapshot = (String, String, String);
 
@@ -7,6 +11,7 @@ pub struct AppState {
     pub selected_device: Mutex<Option<String>>,
     pub busy: Mutex<bool>,
     pub last_devices: Mutex<Vec<DeviceSnapshot>>,
+    pub hotplug_tx: Mutex<Option<mpsc::UnboundedSender<HotplugCmd>>>,
 }
 
 impl Default for AppState {
@@ -15,6 +20,7 @@ impl Default for AppState {
             selected_device: Mutex::new(None),
             busy: Mutex::new(false),
             last_devices: Mutex::new(Vec::new()),
+            hotplug_tx: Mutex::new(None),
         }
     }
 }

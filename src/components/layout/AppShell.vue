@@ -13,7 +13,7 @@ import { useI18n } from "../../i18n";
 
 const state = provideAppState();
 const { activePage } = state;
-const { onDeviceChange } = useDevicePoll(2000, state);
+const { onDeviceChange } = useDevicePoll(undefined, state);
 useToolBusyPoll(state);
 const { t } = useI18n();
 

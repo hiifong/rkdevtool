@@ -1,3 +1,6 @@
 [submodule "src-tauri/bin"]
 	path = src-tauri/bin
 	url = git@github.com:hiifong/rk-upgrade-tool.git
+[submodule "src-tauri/vendor/rockchiprs"]
+	path = src-tauri/vendor/rockchiprs
+	url = https://github.com/hiifong/rockchiprs.git

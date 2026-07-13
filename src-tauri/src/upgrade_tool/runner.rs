@@ -10,7 +10,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::state::AppState;
 
 const EVENT_TOOL_LOG: &str = "tool-log";
-const EVENT_DEVICES: &str = "devices-updated";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LogPayload {
@@ -543,34 +542,6 @@ fn read_tool_stream(
     Ok(reader.finish())
 }
 
-fn devices_to_snapshot(devices: &[RockusbDevice]) -> Vec<crate::state::DeviceSnapshot> {
-    devices
-        .iter()
-        .map(|d| (d.location_id.clone(), d.mode.clone(), d.label.clone()))
-        .collect()
-}
-
-fn snapshot_to_devices(snapshots: &[crate::state::DeviceSnapshot]) -> Vec<RockusbDevice> {
-    snapshots
-        .iter()
-        .map(|(location_id, mode, label)| RockusbDevice {
-            location_id: location_id.clone(),
-            mode: mode.clone(),
-            label: label.clone(),
-        })
-        .collect()
-}
-
-fn store_devices(state: &State<'_, AppState>, devices: &[RockusbDevice]) -> Result<(), String> {
-    *state.last_devices.lock().map_err(|e| e.to_string())? = devices_to_snapshot(devices);
-    Ok(())
-}
-
-fn cached_devices(state: &State<'_, AppState>) -> Result<Vec<RockusbDevice>, String> {
-    let cache = state.last_devices.lock().map_err(|e| e.to_string())?;
-    Ok(snapshot_to_devices(&cache))
-}
-
 fn output_has_error(output: &str) -> bool {
     for line in output.lines() {
         let line = strip_ansi(line);
@@ -1047,115 +1018,11 @@ fn parse_field(line: &str, keys: &[&str]) -> Option<String> {
     None
 }
 
-fn run_ld_sync(tool_path: &Path, work_dir: &Path) -> Result<String, String> {
-    let mut cmd = Command::new(tool_path);
-    cmd.current_dir(work_dir).arg("LD");
-    #[cfg(windows)]
-    apply_windows_hidden(&mut cmd);
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to start upgrade_tool: {e}"))?;
-
-    let mut combined = String::new();
-    let stderr = strip_ansi(&String::from_utf8_lossy(&output.stderr));
-    let stdout = strip_ansi(&String::from_utf8_lossy(&output.stdout));
-
-    if !stderr.is_empty() {
-        combined.push_str(&stderr);
-        if !stderr.ends_with('\n') {
-            combined.push('\n');
-        }
-    }
-    combined.push_str(&stdout);
-    Ok(combined)
-}
-
-fn parse_devices_from_blob(output: &str) -> Vec<RockusbDevice> {
-    let text = strip_ansi(output);
-    let lower = text.to_ascii_lowercase();
-    let mut devices: Vec<RockusbDevice> = Vec::new();
-    let mut start = 0;
-
-    while let Some(rel) = lower[start..].find("locationid=") {
-        let idx = start + rel;
-        let slice = &text[idx..];
-        if let Some(id) = parse_field(slice, &["LocationID", "LocationId"]) {
-            let mode = parse_field(slice, &["Mode"]).unwrap_or_else(|| "UNKNOWN".to_string());
-            if !devices.iter().any(|d| d.location_id == id) {
-                devices.push(RockusbDevice {
-                    label: format!("{id} : {}", mode.to_ascii_uppercase()),
-                    location_id: id,
-                    mode,
-                });
-            }
-        }
-        start = idx + 1;
-    }
-
-    devices
-}
-
-fn parse_devices_by_lines(output: &str) -> Vec<RockusbDevice> {
-    let mut devices = Vec::new();
-    for line in output.lines() {
-        let line = strip_ansi(line);
-        if line.is_empty() {
-            continue;
-        }
-
-        let lower = line.to_ascii_lowercase();
-        if lower.contains("no found") || lower.contains("not found") {
-            continue;
-        }
-
-        if !lower.contains("locationid=") && !lower.contains("devno=") {
-            if !(line.contains(':') && (lower.contains("maskrom") || lower.contains("loader"))) {
-                continue;
-            }
-        }
-
-        if let Some(id) = parse_field(&line, &["LocationID", "LocationId"]) {
-            let mode_str = parse_field(&line, &["Mode"]).unwrap_or_else(|| "UNKNOWN".to_string());
-            devices.push(RockusbDevice {
-                label: format!("{id} : {}", mode_str.to_ascii_uppercase()),
-                location_id: id,
-                mode: mode_str,
-            });
-            continue;
-        }
-
-        if line.contains(':') && (lower.contains("maskrom") || lower.contains("loader")) {
-            let parts: Vec<&str> = line.splitn(2, ':').collect();
-            if parts.len() == 2 {
-                let id = parts[0].trim();
-                let mode_part = parts[1].trim();
-                if !id.is_empty() {
-                    devices.push(RockusbDevice {
-                        label: format!("{id} : {mode_part}"),
-                        location_id: id.to_string(),
-                        mode: mode_part.to_string(),
-                    });
-                }
-            }
-        }
-    }
-    devices
-}
-
-fn parse_devices(output: &str) -> Vec<RockusbDevice> {
-    let devices = parse_devices_by_lines(output);
-    if !devices.is_empty() {
-        return devices;
-    }
-    parse_devices_from_blob(output)
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        command_matches_success, is_progress_line, parse_devices, timeout_for_bytes,
-        write_payload_bytes, TerminalLineBuffer,
+        command_matches_success, is_progress_line, timeout_for_bytes, write_payload_bytes,
+        TerminalLineBuffer,
     };
     use std::fs;
     use std::time::Duration;
@@ -1312,32 +1179,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_ld_comma_separated_line() {
-        let output = "List of rockusb connected(1)\n\
-            DevNo=1 Vid=0x2207,Pid=0x110c,LocationID=24113  Mode=Maskrom    SerialNo=\n";
-        let devices = parse_devices(output);
-        assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].location_id, "24113");
-        assert_eq!(devices[0].mode, "Maskrom");
-    }
-
-    #[test]
-    fn parse_ld_serial_no_suffix() {
-        let output = "Using /path/config.ini\nList of rockusb connected(1)\n\
-            DevNo=1 Vid=0x2207,Pid=0x110c,LocationID=24113 Mode=Maskrom SerialNo=rockchip\n";
-        let devices = parse_devices(output);
-        assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].location_id, "24113");
-        assert_eq!(devices[0].mode, "Maskrom");
-    }
-
-    #[test]
-    fn parse_ld_no_devices() {
-        let output = "List of rockusb connected(0)\n";
-        assert!(parse_devices(output).is_empty());
-    }
-
-    #[test]
     fn parse_current_storage_from_ssd_output() {
         let output = "List of supported storage\n\
             No=1    FLASH\n\
@@ -1405,31 +1246,10 @@ pub async fn get_tool_info(app: AppHandle) -> Result<ToolInfo, String> {
 #[tauri::command]
 pub async fn list_devices(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<RockusbDevice>, String> {
     if *state.busy.lock().map_err(|e| e.to_string())? {
-        return cached_devices(&state);
+        return crate::devices::cached_devices(state.inner());
     }
 
-    let (tool_path, work_dir) = resolve_tool_paths(&app)?;
-    let output = tauri::async_runtime::spawn_blocking(move || run_ld_sync(&tool_path, &work_dir))
-        .await
-        .map_err(|e| e.to_string())??;
-
-    let devices = parse_devices(&output);
-    store_devices(&state, &devices)?;
-
-    {
-        let mut selected = state.selected_device.lock().map_err(|e| e.to_string())?;
-        if devices.is_empty() {
-            *selected = None;
-        } else if !devices
-            .iter()
-            .any(|d| selected.as_deref() == Some(d.location_id.as_str()))
-        {
-            *selected = Some(devices[0].location_id.clone());
-        }
-    }
-
-    let _ = app.emit(EVENT_DEVICES, &devices);
-    Ok(devices)
+    crate::devices::resync_devices(&app, state.inner()).await
 }
 
 #[tauri::command]

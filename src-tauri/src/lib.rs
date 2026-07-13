@@ -1,4 +1,5 @@
 pub mod firmware;
+mod devices;
 mod state;
 mod upgrade_tool;
 
@@ -27,6 +28,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .setup(|app| {
+            devices::start_hotplug_watcher(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_tool_info,
             list_devices,
