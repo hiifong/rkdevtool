@@ -31,8 +31,12 @@ pub enum HotplugCmd {
 
 /// Same filter as rkdeveloptool `IsRockusbDevice` for VID 0x2207:
 /// MSC gadgets use PID with high byte 0 (e.g. 0x0010).
-fn is_rockusb_device(info: &DeviceInfo) -> bool {
+pub fn is_rockusb_device_info(info: &DeviceInfo) -> bool {
     info.vendor_id() == ROCKCHIP_VID && (info.product_id() >> 8) > 0
+}
+
+fn is_rockusb_device(info: &DeviceInfo) -> bool {
+    is_rockusb_device_info(info)
 }
 
 /// Maskrom vs Loader from `bcdUSB` LSB (not PID).
@@ -45,6 +49,10 @@ fn detect_mode(info: &DeviceInfo) -> &'static str {
 }
 
 /// Build LocationID string compatible with `upgrade_tool -s`.
+pub fn format_location_id_for(info: &DeviceInfo) -> String {
+    format_location_id(info)
+}
+
 fn format_location_id(info: &DeviceInfo) -> String {
     #[cfg(target_os = "macos")]
     {
@@ -126,6 +134,19 @@ pub fn publish_devices(
         .collect();
     sync_selected(state, devices)?;
     let _ = app.emit(EVENT_DEVICES, devices);
+    Ok(())
+}
+
+pub fn ensure_backend_not_busy(state: &AppState) -> Result<(), String> {
+    let busy = state.busy.lock().map_err(|e| e.to_string())?;
+    if *busy {
+        return Err("Another task is already running; please wait".to_string());
+    }
+    Ok(())
+}
+
+pub fn set_backend_busy(state: &AppState, busy: bool) -> Result<(), String> {
+    *state.busy.lock().map_err(|e| e.to_string())? = busy;
     Ok(())
 }
 

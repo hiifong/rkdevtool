@@ -84,9 +84,14 @@ async function getCurrentStorageAction(labelKey: string) {
     const result = await run(() => toolApi.getCurrentStorage(), logText(labelKey));
     if (!result) return;
 
-    const index = result.no - 1;
-    if (index >= 0 && index < storageItems.length) {
+    const index = storageItems.findIndex((name) => name === result.name);
+    if (index >= 0) {
       selectedStorage.value = index;
+    } else {
+      const byNo = result.no - 1;
+      if (byNo >= 0 && byNo < storageItems.length) {
+        selectedStorage.value = byNo;
+      }
     }
 
     await message(t("advanced.currentStorageMessage", { name: result.name }), {

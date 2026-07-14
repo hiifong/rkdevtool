@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 afptool-rs = { git = "https://github.com/suyulin/afptool-rs", tag = "v1.2.3" }
 rockusb = { path = "vendor/rockchiprs/rockusb", features = ["nusb"] }
+rockfile = { path = "vendor/rockchiprs/rockfile" }
 nusb = { version = "0.2.1", features = ["tokio"] }
 futures = "0.3"
 tokio = { version = "1", features = ["sync", "macros", "rt"] }

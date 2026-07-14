@@ -2998,6 +2998,7 @@ dependencies = [
  "afptool-rs",
  "futures",
  "nusb",
+ "rockfile",
  "rockusb",
  "serde",
  "serde_json",
@@ -3006,6 +3007,13 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tokio",
+]
+
+[[package]]
+name = "rockfile"
+version = "0.1.2"
+dependencies = [
+ "bytes",
 ]
 
 [[package]]
