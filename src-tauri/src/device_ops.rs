@@ -53,6 +53,7 @@ const PARAMETER_READ_SECTORS: u32 = 128;
 const FIRMWARE_PARAMETER_START_SECTOR: u64 = 0x2000;
 const IDBLOCK_START_SECTOR: u32 = 0x40;
 const IDBLOCK_ALIGNMENT: usize = 2048;
+const GPT_AREA_SECTORS: u32 = 34;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DownloadPartition {
@@ -1036,61 +1037,120 @@ async fn write_loader_idblock(
     app: &AppHandle,
     device: &mut Device,
     loader_path: &Path,
-    flash_sectors: u32,
+    flash_info: &FlashInfo,
 ) -> Result<(), String> {
     let capability = device
         .capability()
         .await
         .map_err(|e| format!("Read Loader capability failed: {e}"))?;
     let (idblock, layout) = build_loader_idblock(loader_path, &capability)?;
-    let sectors = u32::try_from(idblock.len() / SECTOR_SIZE)
+    let idblock_sectors = u32::try_from(idblock.len() / SECTOR_SIZE)
         .map_err(|_| "Loader IDBlock is too large".to_string())?;
-    let end_sector = IDBLOCK_START_SECTOR
-        .checked_add(sectors)
-        .ok_or_else(|| "Loader IDBlock range overflows".to_string())?;
-    if end_sector > flash_sectors {
-        return Err("Loader IDBlock exceeds the target flash size".to_string());
-    }
+    let flash_sectors = flash_info.sectors();
+    let storage = device.storage().await;
+    let spi_nand = matches!(&storage, Ok(StorageIndex::MtdBlkSpiNand) | Ok(StorageIndex::SpiNand));
+    let erase_sectors = u32::from(flash_info.block_size_sectors());
+    let targets = if spi_nand {
+        loader_idblock_write_plan(true, erase_sectors, idblock_sectors)?
+    } else if storage.is_err() && erase_sectors > 0 {
+        // Media unknown: write both layouts; every candidate slot lives inside
+        // the reserved loader region on both MTD and block devices.
+        let mut targets = vec![IDBLOCK_START_SECTOR];
+        targets.extend(loader_idblock_write_plan(true, erase_sectors, idblock_sectors)?);
+        targets
+    } else {
+        loader_idblock_write_plan(false, erase_sectors, idblock_sectors)?
+    };
+    let target_list = targets
+        .iter()
+        .map(|t| format!("0x{t:x}"))
+        .collect::<Vec<_>>()
+        .join(", ");
     emit_log(
         app,
-        &format!(
-            "Writing Loader ({layout}): LBA 0x{IDBLOCK_START_SECTOR:08x}-0x{:08x} ({})",
-            end_sector.saturating_sub(1),
-            format_byte_count(idblock.len() as u64),
-        ),
+        &format!("Loader storage media: {storage:?} → IDBlock copy positions: [{target_list}]"),
     );
-    let mut written = 0usize;
-    let mut last_progress_percent = None;
-    for chunk in idblock.chunks(WRITE_LBA_CHUNK) {
-        let sector = IDBLOCK_START_SECTOR
-            .checked_add(u32::try_from(written / SECTOR_SIZE).unwrap())
-            .ok_or_else(|| "Loader IDBlock address overflows".to_string())?;
-        let transferred = device
-            .write_lba(sector, chunk)
-            .await
-            .map_err(|e| format!("Write Loader IDBlock at LBA {sector} failed: {e}"))?;
-        if transferred as usize != chunk.len() {
-            return Err(format!(
-                "Short Loader IDBlock write at LBA {sector}: got {transferred} bytes, expected {}",
-                chunk.len()
-            ));
+    for (index, start_sector) in targets.iter().enumerate() {
+        let end_sector = start_sector
+            .checked_add(idblock_sectors)
+            .ok_or_else(|| "Loader IDBlock range overflows".to_string())?;
+        if end_sector > flash_sectors {
+            return Err("Loader IDBlock exceeds the target flash size".to_string());
         }
-        written += chunk.len();
-        let percent = (written as u64 * 100) / idblock.len() as u64;
-        if should_emit_progress(last_progress_percent, percent) {
-            emit_progress(
-                app,
-                format!(
-                    "Writing Loader ({layout})... {}/{} ({percent}%)",
-                    format_byte_count(written as u64),
-                    format_byte_count(idblock.len() as u64),
-                ),
-            );
-            last_progress_percent = Some(percent);
+        let copy = if targets.len() > 1 {
+            format!(" copy {}/{}", index + 1, targets.len())
+        } else {
+            String::new()
+        };
+        emit_log(
+            app,
+            &format!(
+                "Writing Loader ({layout}{copy}): LBA 0x{start_sector:08x}-0x{:08x} ({})",
+                end_sector.saturating_sub(1),
+                format_byte_count(idblock.len() as u64),
+            ),
+        );
+        let mut written = 0usize;
+        let mut last_progress_percent = None;
+        for chunk in idblock.chunks(WRITE_LBA_CHUNK) {
+            let sector = start_sector
+                .checked_add(u32::try_from(written / SECTOR_SIZE).unwrap())
+                .ok_or_else(|| "Loader IDBlock address overflows".to_string())?;
+            let transferred = device
+                .write_lba(sector, chunk)
+                .await
+                .map_err(|e| format!("Write Loader IDBlock at LBA {sector} failed: {e}"))?;
+            if transferred as usize != chunk.len() {
+                return Err(format!(
+                    "Short Loader IDBlock write at LBA {sector}: got {transferred} bytes, expected {}",
+                    chunk.len()
+                ));
+            }
+            written += chunk.len();
+            let percent = (written as u64 * 100) / idblock.len() as u64;
+            if should_emit_progress(last_progress_percent, percent) {
+                emit_progress(
+                    app,
+                    format!(
+                        "Writing Loader ({layout}{copy})... {}/{} ({percent}%)",
+                        format_byte_count(written as u64),
+                        format_byte_count(idblock.len() as u64),
+                    ),
+                );
+                last_progress_percent = Some(percent);
+            }
         }
+        emit_log(app, &format!("Written Loader ({layout}{copy}) successfully"));
     }
-    emit_log(app, &format!("Written Loader ({layout}) successfully"));
     Ok(())
+}
+
+/// LBA offsets for persisting the Loader IDBlock.
+///
+/// MTD SPI-NAND (verified against upgrade_tool on RK3506: two erase-block-aligned
+/// copies, first one directly after the GPT area); block devices keep the
+/// historical single copy at LBA 0x40.
+fn loader_idblock_write_plan(
+    spi_nand: bool,
+    erase_sectors: u32,
+    idblock_sectors: u32,
+) -> Result<Vec<u32>, String> {
+    if !spi_nand {
+        return Ok(vec![IDBLOCK_START_SECTOR]);
+    }
+    if erase_sectors == 0 {
+        return Err("Flash reports erase block size 0".to_string());
+    }
+    if idblock_sectors == 0 {
+        return Err("Loader IDBlock is empty".to_string());
+    }
+    let first = erase_sectors * GPT_AREA_SECTORS.div_ceil(erase_sectors);
+    let span_blocks = idblock_sectors.div_ceil(erase_sectors);
+    let second = first + span_blocks * erase_sectors;
+    second
+        .checked_add(idblock_sectors)
+        .ok_or_else(|| "Loader IDBlock range overflows".to_string())?;
+    Ok(vec![first, second])
 }
 
 fn write_lba_chunk_plan(
@@ -1659,7 +1719,7 @@ pub async fn upgrade_firmware(
         }
 
         if let Some(loader_path) = firmware.loader_path.as_deref() {
-            write_loader_idblock(&app, &mut device, loader_path, flash_sectors).await?;
+            write_loader_idblock(&app, &mut device, loader_path, &flash_info).await?;
         }
 
         let gpt_tables = gpt_tables_for_firmware(&firmware.images, flash_sectors)?;
@@ -2359,6 +2419,31 @@ mod tests {
             firmware_write_target(&image).flash_offset_sectors,
             FIRMWARE_PARAMETER_START_SECTOR
         );
+    }
+
+    #[test]
+    fn spi_nand_idblock_copies_align_to_erase_blocks() {
+        let plan = loader_idblock_write_plan(true, 256, 408).unwrap();
+        assert_eq!(plan, vec![256, 768]);
+    }
+
+    #[test]
+    fn block_device_keeps_single_idblock_at_sector_0x40() {
+        assert_eq!(
+            loader_idblock_write_plan(false, 256, 408).unwrap(),
+            vec![0x40]
+        );
+    }
+
+    #[test]
+    fn spi_nand_plan_starts_after_the_gpt_area() {
+        let plan = loader_idblock_write_plan(true, 128, 408).unwrap();
+        assert_eq!(plan, vec![128, 640]);
+    }
+
+    #[test]
+    fn spi_nand_plan_rejects_unknown_erase_size() {
+        assert!(loader_idblock_write_plan(true, 0, 408).is_err());
     }
 
     #[test]
