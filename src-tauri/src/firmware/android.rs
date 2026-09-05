@@ -10,8 +10,111 @@ const BASIC_DATA_GUID: [u8; 16] = [
     0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44, 0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7,
 ];
 const DISK_GUID: [u8; 16] = [
-    0x52, 0x4b, 0x44, 0x54, 0x4f, 0x4f, 0x4c, 0x00, 0x91, 0x80, 0x64, 0x65, 0x76, 0x74, 0x6f, 0x6f,
+    0x3f, 0x83, 0x30, 0x5a, 0x43, 0x8c, 0xb1, 0x47, 0xa4, 0x1d, 0x84, 0xd4, 0x08, 0x83, 0xd0, 0xc6,
 ];
+
+/// Rockchip per-partition GPT GUIDs (raw entry bytes: type GUID, unique GUID).
+/// Byte-identical to upgrade_tool v2.44 output on RK3506 SPI-NAND and stable
+/// across firmware builds that share the partition layout. Unknown names fall
+/// back to the generic BASIC_DATA_GUID entry.
+const ROCKCHIP_PARTITION_GUIDS: &[(&str, [u8; 16], [u8; 16])] = &[
+    (
+        "vnvm",
+        [
+            0x18, 0xe4, 0x24, 0x11, 0x08, 0x90, 0xf8, 0x41, 0x9e, 0x3d, 0x8d, 0x87, 0x22, 0x16,
+            0xc8, 0xa1,
+        ],
+        [
+            0x41, 0x77, 0xad, 0x67, 0x38, 0x46, 0xc6, 0x47, 0xa4, 0x88, 0xd3, 0x96, 0x58, 0x3e,
+            0x58, 0x2a,
+        ],
+    ),
+    (
+        "uboot",
+        [
+            0x6a, 0x48, 0xd4, 0xfb, 0x2c, 0xe4, 0x8d, 0x44, 0xd4, 0xe9, 0x7f, 0x5c, 0x32, 0x4a,
+            0x78, 0x43,
+        ],
+        [
+            0x3d, 0xa0, 0xde, 0x3a, 0x12, 0xc6, 0xed, 0x46, 0xcf, 0xf9, 0xb7, 0x94, 0x39, 0xf1,
+            0x15, 0x61,
+        ],
+    ),
+    (
+        "misc",
+        [
+            0x47, 0x4f, 0xaf, 0xbb, 0x0d, 0x23, 0xb6, 0x45, 0xfe, 0xae, 0xe4, 0xb3, 0x5f, 0x30,
+            0x0b, 0x00,
+        ],
+        [
+            0x4a, 0x48, 0x82, 0xe5, 0x10, 0x90, 0x4a, 0x40, 0x89, 0x9d, 0x47, 0xbd, 0x16, 0xba,
+            0x3f, 0xa8,
+        ],
+    ),
+    (
+        "recovery",
+        [
+            0x54, 0xd3, 0xc5, 0xc5, 0x0b, 0x44, 0x3e, 0x45, 0x88, 0x32, 0xd3, 0x63, 0x49, 0xb6,
+            0xee, 0x24,
+        ],
+        [
+            0x7f, 0x27, 0x11, 0xdc, 0x7f, 0xeb, 0xd9, 0x42, 0x80, 0x27, 0xa8, 0x3b, 0x14, 0x22,
+            0x0e, 0x50,
+        ],
+    ),
+    (
+        "boot",
+        [
+            0x2d, 0xb7, 0xc3, 0x5c, 0x57, 0xc1, 0x84, 0x49, 0xa6, 0x01, 0x30, 0xf5, 0x5f, 0x80,
+            0xac, 0x1c,
+        ],
+        [
+            0x6a, 0x72, 0x5a, 0x29, 0x7d, 0x35, 0x82, 0x43, 0xd5, 0xa6, 0xe7, 0xe8, 0x71, 0xda,
+            0x99, 0xe0,
+        ],
+    ),
+    (
+        "rootfs",
+        [
+            0x50, 0x54, 0xea, 0x34, 0x2a, 0x9f, 0x1b, 0x47, 0x9c, 0x58, 0x28, 0x05, 0x23, 0xe6,
+            0xfe, 0x2b,
+        ],
+        [
+            0x00, 0x00, 0x4e, 0x61, 0x00, 0x00, 0x53, 0x4b, 0x80, 0x00, 0x1d, 0x28, 0x00, 0x00,
+            0x54, 0xa9,
+        ],
+    ),
+    (
+        "oem",
+        [
+            0x5b, 0x5d, 0xe3, 0x9e, 0x34, 0x15, 0x8d, 0x49, 0xac, 0xa1, 0x2e, 0xa9, 0x5d, 0x08,
+            0xaf, 0xb2,
+        ],
+        [
+            0x75, 0xa6, 0xc6, 0x48, 0x44, 0x37, 0xf6, 0x45, 0xd7, 0xff, 0x47, 0x44, 0x49, 0xee,
+            0xb9, 0x8e,
+        ],
+    ),
+    (
+        "userdata",
+        [
+            0x63, 0xe9, 0xb6, 0x9b, 0x7d, 0x75, 0xf3, 0x46, 0x98, 0xdf, 0x9d, 0xcd, 0x61, 0x7b,
+            0x9e, 0x2d,
+        ],
+        [
+            0x31, 0x1b, 0xe7, 0x47, 0x6e, 0x0d, 0x8c, 0x4c, 0xa6, 0xd4, 0x2e, 0xf6, 0x3f, 0xc0,
+            0x36, 0x6c,
+        ],
+    ),
+];
+
+fn rockchip_partition_guids(name: &str) -> Option<([u8; 16], [u8; 16])> {
+    let lower = name.to_ascii_lowercase();
+    ROCKCHIP_PARTITION_GUIDS
+        .iter()
+        .find(|(entry_name, _, _)| *entry_name == lower)
+        .map(|(_, type_guid, unique_guid)| (*type_guid, *unique_guid))
+}
 const SPARSE_MAGIC: u32 = 0xed26_ff3a;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -342,10 +445,15 @@ pub(crate) fn build_gpt_tables(
     let mut entries = vec![0u8; GPT_ENTRY_SIZE * GPT_ENTRY_COUNT];
     for (index, (partition, end_sector)) in resolved.iter().enumerate() {
         let entry = &mut entries[index * GPT_ENTRY_SIZE..(index + 1) * GPT_ENTRY_SIZE];
-        entry[..16].copy_from_slice(&BASIC_DATA_GUID);
+        let (type_guid, table_unique_guid) = match rockchip_partition_guids(&partition.name) {
+            Some((type_guid, unique_guid)) => (type_guid, Some(unique_guid)),
+            None => (BASIC_DATA_GUID, None),
+        };
+        entry[..16].copy_from_slice(&type_guid);
         let mut unique_guid = [0u8; 16];
         unique_guid[0] = (index + 1) as u8;
-        entry[16..32].copy_from_slice(&partition.unique_guid.unwrap_or(unique_guid));
+        entry[16..32]
+            .copy_from_slice(&partition.unique_guid.or(table_unique_guid).unwrap_or(unique_guid));
         entry[32..40].copy_from_slice(&partition.start_sector.to_le_bytes());
         entry[40..48].copy_from_slice(&end_sector.to_le_bytes());
         for (offset, codepoint) in partition.name.encode_utf16().take(36).enumerate() {
@@ -634,5 +742,128 @@ mod tests {
         assert_eq!(fill.payload_bytes, 4);
         assert_eq!(dont_care.kind, SparseChunkKind::DontCare);
         assert_eq!(dont_care.output_bytes, 4096);
+    }
+
+    fn decode_hex(hex: &str) -> Vec<u8> {
+        (0..hex.len())
+            .step_by(2)
+            .map(|index| u8::from_str_radix(&hex[index..index + 2], 16).unwrap())
+            .collect()
+    }
+
+    const RK3506_PARAMETER_HEX: &str = "5041524de00100004649524d574152455f5645523a382e310a4d414348494e455f4d4f44454c3a524b333530360a4d414348494e455f49443a3030370a4d414e5546414354555245523a20524b333530360a4d414749433a20307835303431353234420a415441473a20307830303230303830300a4d414348494e453a20333530360a434845434b5f4d41534b3a20307838300a5057525f484c443a20302c302c412c302c310a545950453a204750540a47524f575f414c49474e3a20300a434d444c494e453a6d746470617274733d3a30783030303031303030403078303030303038303028766e766d292c3078303030303430303040307830303030313830302875626f6f74292c307830303030313030304030783030303035383030286d697363292c307830303030663030304030783030303036383030287265636f76657279292c30783030303035303030403078303030313538303028626f6f74292c30783030303530303030403078303030316138303028726f6f746673292c307830303030383030304030783030303661383030286f656d292c2d40307830303037323830302875736572646174613a67726f77290a757569643a726f6f7466733d36313465303030302d303030302d346235332d383030302d3164323830303030353461390a0d9b8ec6";
+
+    #[test]
+    fn rk3506_gpt_matches_official_upgrade_tool_output() {
+        let official_guids: [(&str, &str, &str, u64, u64); 8] = [
+            (
+                "vnvm",
+                "18e424110890f8419e3d8d872216c8a1",
+                "4177ad673846c647a488d396583e582a",
+                0x800,
+                0x17ff,
+            ),
+            (
+                "uboot",
+                "6a48d4fb2ce48d44d4e97f5c324a7843",
+                "3da0de3a12c6ed46cff9b79439f11561",
+                0x1800,
+                0x57ff,
+            ),
+            (
+                "misc",
+                "474fafbb0d23b645feaee4b35f300b00",
+                "4a4882e510904a40899d47bd16ba3fa8",
+                0x5800,
+                0x67ff,
+            ),
+            (
+                "recovery",
+                "54d3c5c50b443e458832d36349b6ee24",
+                "7f2711dc7febd9428027a83b14220e50",
+                0x6800,
+                0x157ff,
+            ),
+            (
+                "boot",
+                "2db7c35c57c18449a60130f55f80ac1c",
+                "6a725a297d358243d5a6e7e871da99e0",
+                0x15800,
+                0x1a7ff,
+            ),
+            (
+                "rootfs",
+                "5054ea342a9f1b479c58280523e6fe2b",
+                "00004e610000534b80001d28000054a9",
+                0x1a800,
+                0x6a7ff,
+            ),
+            (
+                "oem",
+                "5b5de39e34158d49aca12ea95d08afb2",
+                "75a6c6484437f645d7ff474449eeb98e",
+                0x6a800,
+                0x727ff,
+            ),
+            (
+                "userdata",
+                "63e9b69b7d75f34698df9dcd617b9e2d",
+                "311be7476e0d8c4ca6d42ef63fc0366c",
+                0x72800,
+                0x7fbde,
+            ),
+        ];
+
+        let parameter = decode_hex(RK3506_PARAMETER_HEX);
+        let partitions = parse_gpt_parameter(&parameter).unwrap().unwrap();
+        let tables = build_gpt_tables(&partitions, 523_264).unwrap();
+
+        let header = &tables.primary[SECTOR_SIZE..2 * SECTOR_SIZE];
+        assert_eq!(
+            &header[56..72],
+            &decode_hex("3f83305a438cb147a41d84d40883d0c6")[..]
+        );
+        assert_eq!(
+            u64::from_le_bytes(header[32..40].try_into().unwrap()),
+            523_263
+        );
+        assert_eq!(
+            u64::from_le_bytes(header[48..56].try_into().unwrap()),
+            523_230
+        );
+
+        for (index, (name, type_guid, unique_guid, start, end)) in official_guids.iter().enumerate()
+        {
+            let entry = 2 * SECTOR_SIZE + index * 128;
+            assert_eq!(
+                &tables.primary[entry..entry + 16],
+                &decode_hex(type_guid)[..],
+                "type GUID of {name}"
+            );
+            assert_eq!(
+                &tables.primary[entry + 16..entry + 32],
+                &decode_hex(unique_guid)[..],
+                "unique GUID of {name}"
+            );
+            assert_eq!(
+                u64::from_le_bytes(tables.primary[entry + 32..entry + 40].try_into().unwrap()),
+                *start,
+                "start sector of {name}"
+            );
+            assert_eq!(
+                u64::from_le_bytes(tables.primary[entry + 40..entry + 48].try_into().unwrap()),
+                *end,
+                "end sector of {name}"
+            );
+            let mut utf16 = [0u16; 36];
+            for (offset, chunk) in tables.primary[entry + 56..entry + 128]
+                .chunks_exact(2)
+                .enumerate()
+            {
+                utf16[offset] = u16::from_le_bytes([chunk[0], chunk[1]]);
+            }
+            let decoded_name = String::from_utf16_lossy(&utf16);
+            assert_eq!(decoded_name.trim_end_matches('\0'), *name);
+        }
     }
 }
