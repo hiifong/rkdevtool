@@ -1480,6 +1480,35 @@ fn firmware_write_target(image: &FirmwareImage) -> FirmwareImage {
     target
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct DevicePartitionEntry {
+    pub name: String,
+    pub start_sector: u64,
+    pub sector_count: Option<u64>,
+}
+
+/// Parse a device parameter table file (SDK parameter.txt style) into entries
+/// for the Download Image page.
+#[tauri::command]
+pub async fn parse_device_partition_table(
+    path: String,
+) -> Result<Vec<DevicePartitionEntry>, String> {
+    let data = std::fs::read(&path).map_err(|e| format!("Read partition table failed: {e}"))?;
+    let partitions = match parse_gpt_parameter(&data)? {
+        Some(partitions) => partitions,
+        None => parse_parameter_partitions(&data)?
+            .ok_or_else(|| "Parameter file has no partition entries".to_string())?,
+    };
+    Ok(partitions
+        .into_iter()
+        .map(|partition| DevicePartitionEntry {
+            name: partition.name,
+            start_sector: partition.start_sector,
+            sector_count: partition.sector_count,
+        })
+        .collect())
+}
+
 async fn write_gpt_tables(
     app: &AppHandle,
     device: &mut Device,
