@@ -1727,8 +1727,39 @@ pub async fn upgrade_firmware(
             write_gpt_tables(&app, &mut device, tables).await?;
         }
 
+        let erase_sectors = u32::from(flash_info.block_size_sectors());
+        let storage_media = device.storage().await;
+        let erase_plan = if matches!(
+            &storage_media,
+            Ok(StorageIndex::MtdBlkSpiNand)
+                | Ok(StorageIndex::SpiNand)
+                | Ok(StorageIndex::MtdBlkNand)
+                | Ok(StorageIndex::Nand)
+        ) {
+            data_partition_erase_plan(
+                &firmware.images,
+                erase_sectors,
+                flash_sectors,
+                gpt_tables.as_ref().map(|tables| tables.backup_start_sector),
+            )?
+        } else {
+            emit_log(
+                &app,
+                &format!(
+                    "Skipping partition erase: storage {storage_media:?} is not MTD NAND"
+                ),
+            );
+            Vec::new()
+        };
+
         for image in &firmware.images {
             let target = firmware_write_target(image);
+            if let Some(&(start_block, block_count)) = erase_plan.iter().find(|&&(start_block, _)| {
+                target.flash_offset_sectors / u64::from(erase_sectors) == u64::from(start_block)
+            }) {
+                erase_partition_range(&app, &mut device, &target.name, start_block, block_count)
+                    .await?;
+            }
             let line = write_firmware_image(&app, &mut device, &target, flash_sectors).await?;
             emit_log(&app, &line);
         }
@@ -2049,6 +2080,93 @@ fn flash_block_count(info: &FlashInfo) -> Result<u32, String> {
         return Err("Flash reports 0 sectors".to_string());
     }
     Ok(sectors / block_size)
+}
+
+/// Data partitions (UBI volumes on MTD NAND) must be force-erased across
+/// their full span before their images are written: runtime UBI PEBs left in
+/// a partition tail carry the same image_seq as a freshly written image but
+/// higher sequence numbers, so on attach they steal LEB mappings and corrupt
+/// the volume. upgrade_tool erases each data partition fully before writing.
+const DATA_PARTITION_NAMES: [&str; 3] = ["rootfs", "oem", "userdata"];
+
+fn data_partition_erase_plan(
+    images: &[FirmwareImage],
+    erase_block_sectors: u32,
+    flash_sectors: u32,
+    backup_gpt_start_sector: Option<u32>,
+) -> Result<Vec<(u32, u32)>, String> {
+    if erase_block_sectors == 0 {
+        return Err("Flash reports erase block size 0".to_string());
+    }
+    if flash_sectors == 0 {
+        return Err("Flash reports 0 sectors".to_string());
+    }
+    let mut starts: Vec<u64> = images
+        .iter()
+        .filter(|image| {
+            DATA_PARTITION_NAMES
+                .iter()
+                .any(|name| image.name.eq_ignore_ascii_case(name))
+        })
+        .map(|image| image.flash_offset_sectors)
+        .collect();
+    starts.sort_unstable();
+    starts.dedup();
+    let mut plan = Vec::with_capacity(starts.len());
+    for (index, &start) in starts.iter().enumerate() {
+        let end = match starts.get(index + 1) {
+            Some(&next) => next,
+            None => u64::from(backup_gpt_start_sector.unwrap_or(flash_sectors)),
+        };
+        let start_block = start / u64::from(erase_block_sectors);
+        let end_block = end / u64::from(erase_block_sectors);
+        if end_block <= start_block {
+            continue;
+        }
+        let start_block = u32::try_from(start_block)
+            .map_err(|_| "Image region exceeds RockUSB range".to_string())?;
+        let block_count = end_block - u64::from(start_block);
+        let block_count = u32::try_from(block_count)
+            .map_err(|_| "Image region exceeds RockUSB range".to_string())?;
+        plan.push((start_block, block_count));
+    }
+    Ok(plan)
+}
+
+async fn erase_partition_range(
+    app: &AppHandle,
+    device: &mut Device,
+    name: &str,
+    start_block: u32,
+    block_count: u32,
+) -> Result<(), String> {
+    let chunks = erase_block_chunks(block_count)?;
+    emit_log(
+        app,
+        &format!(
+            "Erasing {name} partition: blocks 0x{start_block:x}-0x{:x} ({block_count} blocks)",
+            start_block + block_count - 1
+        ),
+    );
+    let total = chunks.len();
+    for (index, (offset, count)) in chunks.into_iter().enumerate() {
+        device
+            .erase_force(start_block + offset, count)
+            .await
+            .map_err(|e| format!("Erase {name} block {} failed: {e}", start_block + offset))?;
+        if (index + 1) % 8 == 0 || index + 1 == total {
+            emit_progress(
+                app,
+                format!(
+                    "Erasing {name} partition... {}/{} blocks",
+                    offset + u32::from(count),
+                    block_count
+                ),
+            );
+        }
+    }
+    emit_log(app, &format!("Erased {name} partition successfully"));
+    Ok(())
 }
 
 /// Erase entire flash (upgrade_tool `EF` / rkdeveloptool `ef` / `EraseAllBlocks`).
@@ -2571,5 +2689,63 @@ mod tests {
         assert_eq!(partitions[1].name, "boot");
         assert_eq!(partitions[1].start_sector, 0xc800);
         assert_eq!(partitions[1].sector_count, Some(0x14000));
+    }
+
+    fn fw_image(name: &str, start: u64) -> FirmwareImage {
+        FirmwareImage {
+            name: name.to_string(),
+            path: PathBuf::from(format!("{name}.bin")),
+            flash_offset_sectors: start,
+            flash_size_sectors: 0,
+            byte_count: 0,
+        }
+    }
+
+    #[test]
+    fn data_partition_erase_plan_matches_official_tool_ranges() {
+        let images = vec![
+            fw_image("parameter", 0x2000),
+            fw_image("uboot", 0x1800),
+            fw_image("misc", 0x5800),
+            fw_image("rootfs", 0x1a800),
+            fw_image("oem", 0x6a800),
+            fw_image("userdata", 0x72800),
+        ];
+
+        let plan = data_partition_erase_plan(&images, 256, 523_264, Some(523_231)).unwrap();
+        assert_eq!(plan, [(0x1a8, 1280), (0x6a8, 128), (0x728, 211)]);
+        assert_eq!(erase_block_chunks(211).unwrap().last(), Some(&(208, 3)));
+    }
+
+    #[test]
+    fn data_partition_erase_plan_without_rootfs_starts_at_oem() {
+        let images = vec![fw_image("oem", 0x6a800), fw_image("userdata", 0x72800)];
+
+        let plan = data_partition_erase_plan(&images, 256, 523_264, Some(523_231)).unwrap();
+        assert_eq!(plan, [(0x6a8, 128), (0x728, 211)]);
+    }
+
+    #[test]
+    fn data_partition_erase_plan_without_backup_gpt_extends_to_flash_end() {
+        let images = vec![fw_image("userdata", 0x72800)];
+
+        let plan = data_partition_erase_plan(&images, 256, 523_264, None).unwrap();
+        assert_eq!(plan, [(0x728, 212)]);
+    }
+
+    #[test]
+    fn data_partition_erase_plan_is_empty_without_data_partitions() {
+        let images = vec![fw_image("uboot", 0x1800), fw_image("boot", 0x15800)];
+
+        assert!(data_partition_erase_plan(&images, 256, 523_264, Some(523_231))
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn data_partition_erase_plan_rejects_zero_block_size() {
+        let images = vec![fw_image("userdata", 0x72800)];
+
+        assert!(data_partition_erase_plan(&images, 0, 523_264, Some(523_231)).is_err());
     }
 }
