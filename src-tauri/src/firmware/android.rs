@@ -97,21 +97,32 @@ pub(crate) fn parse_gpt_parameter(data: &[u8]) -> Result<Option<Vec<GptPartition
 pub(crate) fn parse_parameter_partitions(data: &[u8]) -> Result<Option<Vec<GptPartition>>, String> {
     let payload = parameter_payload(data)?;
     let text = String::from_utf8_lossy(payload);
-    let Some(cmdline_start) = text.find("CMDLINE:") else {
-        return Ok(None);
-    };
+    let mut partition_entries = Vec::new();
+    let mut found_mtdparts = false;
 
-    let cmdline = text[cmdline_start + "CMDLINE:".len()..]
-        .split('\0')
-        .next()
-        .unwrap_or_default();
-    let (_, entries) = cmdline
-        .split_once(':')
-        .ok_or_else(|| "GPT parameter CMDLINE has no mtdparts entries".to_string())?;
+    // Match rkdeveloptool's line-oriented parser: `uuid:` and comments are
+    // independent parameter records, not extensions of the mtdparts command.
+    for line in text.split(['\0', '\n', '\r']) {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some(mtdparts_start) = line.find("mtdparts") else {
+            continue;
+        };
+        found_mtdparts = true;
+        let (_, entries) = line[mtdparts_start..]
+            .split_once(':')
+            .ok_or_else(|| "GPT parameter mtdparts has no partition entries".to_string())?;
+        partition_entries.extend(entries.split(','));
+    }
+    if !found_mtdparts {
+        return Ok(None);
+    }
 
     let partition_guids = parse_parameter_partition_guids(&text)?;
     let mut partitions = Vec::new();
-    for entry in entries.split(',') {
+    for entry in partition_entries {
         let (size, rest) = entry
             .trim()
             .split_once('@')
@@ -476,6 +487,26 @@ mod tests {
         assert_eq!(partitions[1].name, "boot");
         assert_eq!(partitions[1].start_sector, 0xc800);
         assert_eq!(partitions[2].sector_count, None);
+    }
+
+    #[test]
+    fn parses_sdk_parameter_with_trailing_comments() {
+        let parameter = b"FIRMWARE_VER: 1.0\nTYPE: GPT\nCMDLINE: mtdparts=:0x00002000@0x00004000(uboot),0x00002000@0x00006000(misc),0x00020000@0x00008000(boot),0x00040000@0x00028000(recovery),0x00010000@0x00068000(backup),0x06400000@0x00078000(rootfs),0x00040000@0x06478000(oem),-@0x064B8000(userdata:grow)\nuuid:rootfs=614e0000-0000-4b53-8000-1d28000054a9\nuuid:boot=7A3F0000-0000-446A-8000-702F00006273\n# default partition size\n# 4MB(uboot),4MB(misc),64MB(boot),128MB(recovery),32MB(backup),50GB(rootfs),128M(oem),-(userdata)\n";
+
+        let partitions = parse_gpt_parameter(parameter).unwrap().unwrap();
+
+        assert_eq!(partitions.len(), 8);
+        assert_eq!(partitions[0].name, "uboot");
+        assert_eq!(partitions[5].name, "rootfs");
+        assert_eq!(partitions[7].name, "userdata");
+        assert_eq!(partitions[7].sector_count, None);
+        assert_eq!(
+            partitions[5].unique_guid,
+            Some([
+                0x00, 0x00, 0x4e, 0x61, 0x00, 0x00, 0x53, 0x4b, 0x80, 0x00, 0x1d, 0x28, 0x00, 0x00,
+                0x54, 0xa9,
+            ])
+        );
     }
 
     #[test]

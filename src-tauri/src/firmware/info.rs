@@ -1,9 +1,10 @@
-use afptool_rs::{UpdateHeader, RKAF_SIGNATURE, RKFW_SIGNATURE};
+use afptool_rs::{UpdateHeader, RKAF_SIGNATURE, RKFW_SIGNATURE, UPDATE_HEADER_SIZE};
 use serde::Serialize;
 use std::fs::File;
 use std::io::Read;
-use std::mem;
 use std::path::Path;
+
+const FIRMWARE_INFO_SAMPLE_SIZE: u64 = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FirmwareInfo {
@@ -19,9 +20,11 @@ pub fn parse_firmware_info(path: &str) -> Result<FirmwareInfo, String> {
         return Err(format!("File not found: {}", path.display()));
     }
 
-    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let file = File::open(path).map_err(|e| e.to_string())?;
     let mut buf = Vec::new();
-    file.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+    file.take(FIRMWARE_INFO_SAMPLE_SIZE)
+        .read_to_end(&mut buf)
+        .map_err(|e| e.to_string())?;
 
     if buf.len() < 4 {
         return Err("File is too short to detect firmware format".to_string());
@@ -84,12 +87,13 @@ fn parse_rkfw_loader_version(buf: &[u8]) -> String {
 }
 
 fn parse_rkaf(buf: &[u8], path: &Path) -> Result<FirmwareInfo, String> {
-    let header_size = mem::size_of::<UpdateHeader>();
+    let header_size = UPDATE_HEADER_SIZE;
     if buf.len() < header_size {
         return Err("Incomplete RKAF header".to_string());
     }
 
-    let header = UpdateHeader::from_bytes(&buf[..header_size]);
+    let header = UpdateHeader::decode(&buf[..header_size])
+        .map_err(|e| format!("Invalid RKAF header: {e}"))?;
     let manufacturer = cstr_field(&header.manufacturer);
     let model = cstr_field(&header.model);
 
@@ -139,12 +143,12 @@ fn parse_rkaf(buf: &[u8], path: &Path) -> Result<FirmwareInfo, String> {
 }
 
 fn parse_loader_from_rkaf(buf: &[u8]) -> Option<String> {
-    let header_size = mem::size_of::<UpdateHeader>();
+    let header_size = UPDATE_HEADER_SIZE;
     if buf.len() < header_size {
         return None;
     }
 
-    let header = UpdateHeader::from_bytes(&buf[..header_size]);
+    let header = UpdateHeader::decode(&buf[..header_size]).ok()?;
     for i in 0..header.num_parts {
         let part = &header.parts[i as usize];
         let name = cstr_field(&part.name);
@@ -258,11 +262,11 @@ fn detect_chip_from_rkfw_boot(buf: &[u8]) -> Option<String> {
 }
 
 fn chip_from_rkaf_header(buf: &[u8]) -> Option<String> {
-    let header_size = mem::size_of::<UpdateHeader>();
+    let header_size = UPDATE_HEADER_SIZE;
     if buf.len() < header_size {
         return None;
     }
-    let header = UpdateHeader::from_bytes(&buf[..header_size]);
+    let header = UpdateHeader::decode(&buf[..header_size]).ok()?;
     let manufacturer = cstr_field(&header.manufacturer).trim().to_string();
     let model = cstr_field(&header.model).trim().to_string();
 
