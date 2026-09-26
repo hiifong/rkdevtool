@@ -65,6 +65,27 @@ function addRow() {
   });
 }
 
+async function importPartitionTable() {
+  const path = await pickFile(t("download.pickParameter"));
+  if (!path) return;
+  try {
+    const partitions = await toolApi.parseDevicePartitionTable(path);
+    for (const partition of partitions) {
+      rows.value.push({
+        id: nextId++,
+        enabled: true,
+        storage: "",
+        address: `0x${partition.start_sector.toString(16).toUpperCase().padStart(8, "0")}`,
+        name: partition.name,
+        path: "",
+      });
+    }
+    appendLog(`${t("download.importedPartitions")}: ${partitions.length}`);
+  } catch (err) {
+    appendLog(String(err), "error");
+  }
+}
+
 async function browsePath(row: PartitionRow) {
   const path = await pickFile(t("download.pickImage"));
   if (!path) return;
@@ -177,9 +198,19 @@ function clearRows() {
         </span>
       </div>
 
-      <button type="button" class="partition-table__add" @click="addRow">
-        {{ t("download.addRow") }}
-      </button>
+      <div class="partition-table__footer">
+        <button type="button" class="partition-table__add" @click="addRow">
+          {{ t("download.addRow") }}
+        </button>
+        <button
+          type="button"
+          class="partition-table__add partition-table__import"
+          :disabled="busy"
+          @click="importPartitionTable"
+        >
+          {{ t("download.importPartitionTable") }}
+        </button>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -311,6 +342,19 @@ function clearRows() {
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 600;
+}
+
+.partition-table__footer {
+  display: flex;
+}
+
+.partition-table__footer .partition-table__add {
+  flex: 1 1 0;
+  width: auto;
+}
+
+.partition-table__footer .partition-table__add + .partition-table__add {
+  border-left: 1px solid var(--color-border);
 }
 
 .partition-table__add:hover {

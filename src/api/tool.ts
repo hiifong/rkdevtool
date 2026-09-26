@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   ActionParams,
   CurrentStorageInfo,
+  DevicePartitionEntry,
   DownloadExecutePayload,
   FirmwareInfo,
   RockusbDevice,
@@ -34,6 +35,10 @@ export function downloadBoot(path: string) {
 
 export function downloadExecute(payload: DownloadExecutePayload) {
   return invoke<void>("download_execute", { payload });
+}
+
+export function parseDevicePartitionTable(path: string) {
+  return invoke<DevicePartitionEntry[]>("parse_device_partition_table", { path });
 }
 
 export function parseFirmware(path: string) {

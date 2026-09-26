@@ -666,4 +666,30 @@ mod tests {
         assert_eq!(dont_care.kind, SparseChunkKind::DontCare);
         assert_eq!(dont_care.output_bytes, 4096);
     }
+
+    const SDK_DEVICE_PARAMETER_FILE: &[u8] = b"FIRMWARE_VER:8.1\nMACHINE_MODEL:RK3506\nMACHINE_ID:007\nMANUFACTURER: RK3506\nMAGIC: 0x5041524B\nATAG: 0x00200800\nMACHINE: 3506\nCHECK_MASK: 0x80\nPWR_HLD: 0,0,A,0,1\nTYPE: GPT\nGROW_ALIGN: 0\nCMDLINE:mtdparts=:0x00001000@0x00000800(vnvm),0x00004000@0x00001800(uboot),0x00001000@0x00005800(misc),0x0000f000@0x00006800(recovery),0x00005000@0x00015800(boot),0x00050000@0x0001a800(rootfs),0x00008000@0x0006a800(oem),-@0x00072800(userdata:grow)\nuuid:rootfs=614e0000-0000-4b53-8000-1d28000054a9\n";
+
+    #[test]
+    fn parses_sdk_device_parameter_file_with_empty_mtdparts_device_name() {
+        let partitions = parse_gpt_parameter(SDK_DEVICE_PARAMETER_FILE).unwrap().unwrap();
+
+        assert_eq!(partitions.len(), 8);
+        assert_eq!(partitions[0].name, "vnvm");
+        assert_eq!(partitions[0].start_sector, 0x800);
+        assert_eq!(partitions[0].sector_count, Some(0x1000));
+        assert_eq!(partitions[1].name, "uboot");
+        assert_eq!(partitions[1].start_sector, 0x1800);
+        assert_eq!(partitions[5].name, "rootfs");
+        assert_eq!(partitions[5].start_sector, 0x1a800);
+        assert_eq!(
+            partitions[5].unique_guid,
+            Some([
+                0x00, 0x00, 0x4e, 0x61, 0x00, 0x00, 0x53, 0x4b, 0x80, 0x00, 0x1d, 0x28, 0x00, 0x00,
+                0x54, 0xa9
+            ])
+        );
+        assert_eq!(partitions[7].name, "userdata");
+        assert_eq!(partitions[7].start_sector, 0x72800);
+        assert_eq!(partitions[7].sector_count, None);
+    }
 }

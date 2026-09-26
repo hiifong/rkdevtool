@@ -32,6 +32,12 @@ export interface DownloadExecutePayload {
   force_by_address: boolean;
 }
 
+export interface DevicePartitionEntry {
+  name: string;
+  start_sector: number;
+  sector_count: number | null;
+}
+
 export interface ActionParams {
   boot_path?: string;
   start_sector?: string;

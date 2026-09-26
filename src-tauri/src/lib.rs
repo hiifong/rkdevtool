@@ -10,7 +10,10 @@ use upgrade_tool::{
     download_execute, get_tool_info, is_tool_busy, list_devices, partition_list, run_action,
     select_device,
 };
-use device_ops::{download_boot, get_current_storage, read_chip_info, upgrade_firmware};
+use device_ops::{
+    download_boot, get_current_storage, parse_device_partition_table, read_chip_info,
+    upgrade_firmware,
+};
 
 #[tauri::command]
 fn parse_firmware(path: String) -> Result<FirmwareInfo, String> {
@@ -47,6 +50,7 @@ pub fn run() {
             download_boot,
             download_execute,
             parse_firmware,
+            parse_device_partition_table,
             extract_firmware,
             read_chip_info,
             get_current_storage,
