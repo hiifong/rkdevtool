@@ -46,6 +46,7 @@ export default {
     name: "名字",
     path: "路径",
     addRow: "+ 新增配置项",
+    removeRow: "删除第 {index} 行配置",
     loaderVer: "Loader Ver",
     forceByAddress: "强制按地址写",
     execute: "执行",
@@ -55,6 +56,7 @@ export default {
     pickImage: "选择镜像文件",
     selectStorageFirst: "请先选择一行并设置存储类型",
     cleared: "已清空配置",
+    partitionsLoaded: "已将 {count} 个设备分区填入下载表单",
   },
   upgrade: {
     firmware: "固件",

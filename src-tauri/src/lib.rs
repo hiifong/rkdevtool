@@ -7,10 +7,10 @@ mod upgrade_tool;
 use firmware::{extract_firmware_file, parse_firmware_info, FirmwareInfo};
 use state::AppState;
 use upgrade_tool::{
-    download_execute, get_tool_info, is_tool_busy, list_devices, partition_list, run_action,
+    download_execute, get_tool_info, is_tool_busy, list_devices, run_action,
     select_device,
 };
-use device_ops::{download_boot, get_current_storage, read_chip_info, upgrade_firmware};
+use device_ops::{download_boot, get_current_storage, partition_list, read_chip_info, upgrade_firmware};
 
 #[tauri::command]
 fn parse_firmware(path: String) -> Result<FirmwareInfo, String> {

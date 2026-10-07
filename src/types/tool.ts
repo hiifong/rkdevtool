@@ -44,6 +44,16 @@ export interface CurrentStorageInfo {
   name: string;
 }
 
+export interface DevicePartitionInfo {
+  name: string;
+  address: string;
+}
+
+export interface DevicePartitionTable {
+  partitions: DevicePartitionInfo[];
+  storage: CurrentStorageInfo | null;
+}
+
 export interface ToolLogEvent {
   text: string;
   level: LogLevel;

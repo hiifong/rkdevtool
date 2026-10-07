@@ -1023,19 +1023,6 @@ pub fn select_device(state: State<'_, AppState>, location_id: Option<String>) ->
 }
 
 #[tauri::command]
-pub async fn partition_list(app: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
-    let result = with_tool(app, state, |app, tool, dir, device| {
-        run_tool_sync(app, tool, dir, device, &[String::from("PL")], false)
-    })
-    .await?;
-
-    if !result.success {
-        return Err("Failed to read partition table".to_string());
-    }
-    Ok(result.output)
-}
-
-#[tauri::command]
 pub async fn download_execute(
     app: AppHandle,
     state: State<'_, AppState>,

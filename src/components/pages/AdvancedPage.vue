@@ -15,12 +15,11 @@ import { ADVANCED_ACTIONS } from "../../constants/advancedActions";
 import { useI18n } from "../../i18n";
 import { logText } from "../../i18n/logText";
 
-const { appendLog, busy } = useAppState();
+const { appendLog, busy, advancedForm } = useAppState();
+const { bootPath, firmwarePath } = advancedForm;
 const { run } = useToolCommand();
 const { t } = useI18n();
 
-const bootPath = ref("");
-const firmwarePath = ref("");
 const startSector = ref("");
 const sectorCount = ref("");
 

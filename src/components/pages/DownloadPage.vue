@@ -1,28 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import AppButton from "../ui/AppButton.vue";
 import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
+import { downloadStorageOptions as storageOptions } from "../../composables/useDownloadForm";
 import { useToolCommand, toolApi } from "../../composables/useToolCommand";
 import { pickFile } from "../../composables/useFilePicker";
 import { useI18n } from "../../i18n";
 import { logText } from "../../i18n/logText";
-import type { PartitionRow, StorageType } from "../../types/app";
+import type { PartitionRow } from "../../types/app";
 
-const { appendLog, busy } = useAppState();
+const { appendLog, busy, downloadForm } = useAppState();
+const { rows, forceByAddress, selectedRowId, addRow, removeRow, clearRows: clearFormRows, fillFromPartitionTable } = downloadForm;
 const { run } = useToolCommand();
 const { t } = useI18n();
-
-const storageOptions: StorageType[] = [
-  "",
-  "FLASH",
-  "EMMC",
-  "SD",
-  "SPINOR",
-  "SPINAND",
-  "SATA",
-  "PCIE",
-];
 
 const storageIndexMap: Record<string, string> = {
   FLASH: "1",
@@ -34,53 +25,35 @@ const storageIndexMap: Record<string, string> = {
   PCIE: "10",
 };
 
-const forceByAddress = ref(false);
-const selectedRowId = ref(1);
 const loaderVersion = ref("");
-let nextId = 2;
 
-const rows = ref<PartitionRow[]>([
-  {
-    id: 1,
-    enabled: true,
-    storage: "",
-    address: "0x00000000",
-    name: "Loader",
-    path: "",
+watch(
+  () => rows.value.find((row) => row.name.toLowerCase().includes("loader"))?.path ?? "",
+  async (path, _previousPath, onCleanup) => {
+    let active = true;
+    onCleanup(() => {
+      active = false;
+    });
+    loaderVersion.value = "";
+    if (!path) return;
+    try {
+      const info = await toolApi.parseFirmware(path);
+      if (active) loaderVersion.value = info.loader_version || "";
+    } catch {
+      // The saved file may have been moved or removed since the previous session.
+    }
   },
-]);
+  { immediate: true },
+);
 
 function selectRow(id: number) {
   selectedRowId.value = id;
-}
-
-function addRow() {
-  rows.value.push({
-    id: nextId++,
-    enabled: true,
-    storage: "",
-    address: "0x00000000",
-    name: "",
-    path: "",
-  });
 }
 
 async function browsePath(row: PartitionRow) {
   const path = await pickFile(t("download.pickImage"));
   if (!path) return;
   row.path = path;
-  if (row.name.toLowerCase().includes("loader")) {
-    await refreshLoaderVersion(path);
-  }
-}
-
-async function refreshLoaderVersion(path: string) {
-  try {
-    const info = await toolApi.parseFirmware(path);
-    loaderVersion.value = info.loader_version || "";
-  } catch {
-    loaderVersion.value = "";
-  }
 }
 
 async function execute() {
@@ -124,15 +97,17 @@ async function switchStorage() {
 
 async function showPartitionList() {
   try {
-    const output = await run(() => toolApi.partitionList(), logText("task.partitionList"));
-    if (output) appendLog(output, "info");
+    const table = await run(() => toolApi.partitionList(), logText("task.partitionList"));
+    if (!table) return;
+    fillFromPartitionTable(table);
+    appendLog(logText("download.partitionsLoaded", { count: String(table.partitions.length) }), "success");
   } catch (err) {
     appendLog(String(err), "error");
   }
 }
 
 function clearRows() {
-  rows.value = [];
+  clearFormRows();
   appendLog(logText("download.cleared"));
 }
 </script>
@@ -147,6 +122,7 @@ function clearRows() {
         <span class="col col--address">{{ t("download.address") }}</span>
         <span class="col col--name">{{ t("download.name") }}</span>
         <span class="col col--path">{{ t("download.path") }}</span>
+        <span class="col col--actions" aria-hidden="true" />
       </div>
 
       <div
@@ -174,6 +150,20 @@ function clearRows() {
         </span>
         <span class="col col--path" @click.stop>
           <PathField v-model="row.path" @browse="browsePath(row)" />
+        </span>
+        <span class="col col--actions">
+          <button
+            type="button"
+            class="partition-table__remove"
+            :title="t('download.removeRow', { index: String(index + 1) })"
+            :aria-label="t('download.removeRow', { index: String(index + 1) })"
+            :disabled="busy"
+            @click.stop="removeRow(row.id)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+            </svg>
+          </button>
         </span>
       </div>
 
@@ -268,12 +258,45 @@ function clearRows() {
 }
 
 .col--name {
-  width: 56px;
+  width: 88px;
 }
 
 .col--path {
   flex: 1;
   min-width: 0;
+}
+
+.col--actions {
+  width: 32px;
+  justify-content: center;
+}
+
+.partition-table__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-danger);
+}
+
+.partition-table__remove:hover:not(:disabled) {
+  background: var(--color-danger-light);
+  border-color: var(--color-danger);
+}
+
+.partition-table__remove:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.partition-table__remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .storage-select {

@@ -46,6 +46,7 @@ export default {
     name: "Name",
     path: "Path",
     addRow: "+ Add entry",
+    removeRow: "Delete configuration row {index}",
     loaderVer: "Loader Ver",
     forceByAddress: "Force write by address",
     execute: "Execute",
@@ -55,6 +56,7 @@ export default {
     pickImage: "Select image file",
     selectStorageFirst: "Select a row and set storage type first",
     cleared: "Configuration cleared",
+    partitionsLoaded: "Loaded {count} device partitions into the download form",
   },
   upgrade: {
     firmware: "Firmware",

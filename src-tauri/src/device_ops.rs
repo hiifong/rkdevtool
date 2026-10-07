@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Emitter, State};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use rockfile::boot::{
     RkBootEntry, RkBootEntryBytes, RkBootHeader, RkBootHeaderBytes, RkBootHeaderEntry,
@@ -48,6 +49,8 @@ const LOADER_READY_INTERVAL: Duration = Duration::from_millis(250);
 const LOADER_BOOT_SETTLE_DELAY: Duration = Duration::from_secs(1);
 const PARAMETER_START_SECTOR: u32 = 0x20;
 const PARAMETER_READ_SECTORS: u32 = 128;
+/// Match rkdeveloptool `print_parameter`: read the PARM image at LBA 0x2000.
+const FIRMWARE_PARAMETER_READ_SECTORS: u32 = 512;
 /// Firmware package parameter entries have a metadata offset of zero. Rockchip's
 /// `PRM` command persists their PARM payload at this fixed flash address.
 const FIRMWARE_PARAMETER_START_SECTOR: u64 = 0x2000;
@@ -64,12 +67,25 @@ const NAND_IDBLOCK_COPIES: u32 = 5;
 const NAND_IDBLOCK_RAW_WRITE_SECTOR_LIMIT: u32 = 0x800;
 /// Match upgrade_tool's IDBlock raw-sector write batches.
 const NAND_IDBLOCK_WRITE_PAGES: usize = 16;
+const UPGRADE_CACHE_DIRECTORY: &str = "firmware-upgrades";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DownloadPartition {
     name: String,
     start_sector: u64,
     sector_count: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DevicePartition {
+    name: String,
+    address: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PartitionListResponse {
+    partitions: Vec<DevicePartition>,
+    storage: Option<CurrentStorageInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -492,6 +508,44 @@ pub async fn get_current_storage(
     .await
 }
 
+#[tauri::command]
+pub async fn partition_list(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<PartitionListResponse, String> {
+    with_busy_device(&app, &state, "partition-list", |mut device| async move {
+        // Like rkdeveloptool's ppt, try LBA reads even if USB descriptors still
+        // report Maskrom after the Loader has started.
+        let partitions = read_download_partitions(&mut device).await?;
+        if partitions.is_empty() {
+            return Err("The selected storage has no partitions".to_string());
+        }
+        let storage = device.storage().await.ok().map(storage_to_ui);
+        let mut output = vec![
+            "Partition Info".to_string(),
+            "NO  LBA         Name".to_string(),
+        ];
+        let partitions = partitions
+            .into_iter()
+            .enumerate()
+            .map(|(index, partition)| {
+                let address = format!("0x{:08x}", partition.start_sector);
+                output.push(format!("{index:02}  {address}  {}", partition.name));
+                DevicePartition {
+                    name: partition.name,
+                    address,
+                }
+            })
+            .collect();
+        output.push("Read partition table success".to_string());
+        Ok((
+            PartitionListResponse { partitions, storage },
+            output.join("\n"),
+        ))
+    })
+    .await
+}
+
 pub async fn switch_storage(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -706,7 +760,7 @@ fn parse_gpt_download_partitions(
         }
 
         let mut name_words = Vec::new();
-        for bytes in entry[56..].chunks_exact(2) {
+        for bytes in entry[56..128].chunks_exact(2) {
             let word = u16::from_le_bytes(bytes.try_into().unwrap());
             if word == 0 {
                 break;
@@ -730,6 +784,21 @@ fn parse_gpt_download_partitions(
         });
     }
     Ok(Some(partitions))
+}
+
+fn parse_parameter_download_partitions(
+    data: &[u8],
+) -> Result<Option<Vec<DownloadPartition>>, String> {
+    Ok(parse_parameter_partitions(data)?.map(|partitions| {
+        partitions
+            .into_iter()
+            .map(|partition| DownloadPartition {
+                name: partition.name,
+                start_sector: partition.start_sector,
+                sector_count: partition.sector_count,
+            })
+            .collect()
+    }))
 }
 
 async fn read_lba_sectors(
@@ -764,31 +833,62 @@ async fn read_lba_sectors(
 }
 
 async fn read_download_partitions(device: &mut Device) -> Result<Vec<DownloadPartition>, String> {
-    let header = read_lba_sectors(device, 1, 1).await?;
-    if let Some((entries_lba, entry_count, entry_size)) = gpt_entry_layout(&header)? {
-        let entry_bytes = u64::from(entry_count) * u64::from(entry_size);
-        let entry_sectors = entry_bytes.div_ceil(SECTOR_SIZE as u64);
-        let entry_start = u32::try_from(entries_lba)
-            .map_err(|_| "GPT partition table address exceeds RockUSB LBA range".to_string())?;
-        let entry_sectors = u32::try_from(entry_sectors)
-            .map_err(|_| "GPT partition table is too large".to_string())?;
-        let entries = read_lba_sectors(device, entry_start, entry_sectors).await?;
-        return parse_gpt_download_partitions(&header, &entries)?
-            .ok_or_else(|| "GPT partition table is missing".to_string());
+    let mut read_errors = Vec::new();
+    match read_lba_sectors(device, 1, 1).await {
+        Ok(header) => {
+            if let Some((entries_lba, entry_count, entry_size)) = gpt_entry_layout(&header)? {
+                let entry_bytes = u64::from(entry_count) * u64::from(entry_size);
+                let entry_sectors = entry_bytes.div_ceil(SECTOR_SIZE as u64);
+                let entry_start = u32::try_from(entries_lba).map_err(|_| {
+                    "GPT partition table address exceeds RockUSB LBA range".to_string()
+                })?;
+                let entry_sectors = u32::try_from(entry_sectors)
+                    .map_err(|_| "GPT partition table is too large".to_string())?;
+                match read_lba_sectors(device, entry_start, entry_sectors).await {
+                    Ok(entries) => {
+                        return parse_gpt_download_partitions(&header, &entries)?
+                            .ok_or_else(|| "GPT partition table is missing".to_string());
+                    }
+                    Err(error) => read_errors.push(error),
+                }
+            }
+        }
+        Err(error) => read_errors.push(error),
     }
 
-    let parameter =
-        read_lba_sectors(device, PARAMETER_START_SECTOR, PARAMETER_READ_SECTORS).await?;
-    let partitions = parse_parameter_partitions(&parameter)?
-        .ok_or_else(|| "No GPT or Rockchip parameter partition table found".to_string())?;
-    Ok(partitions
-        .into_iter()
-        .map(|partition| DownloadPartition {
-            name: partition.name,
-            start_sector: partition.start_sector,
-            sector_count: partition.sector_count,
-        })
-        .collect())
+    for (start_sector, sector_count) in [
+        (
+            FIRMWARE_PARAMETER_START_SECTOR as u32,
+            FIRMWARE_PARAMETER_READ_SECTORS,
+        ),
+        (PARAMETER_START_SECTOR, PARAMETER_READ_SECTORS),
+    ] {
+        let parameter = match read_lba_sectors(device, start_sector, sector_count).await {
+            Ok(parameter) => parameter,
+            Err(error) => {
+                read_errors.push(error);
+                continue;
+            }
+        };
+        // The official parameter location contains a length-prefixed PARM image.
+        // Retain support for older raw parameter data at LBA 0x20.
+        if u64::from(start_sector) == FIRMWARE_PARAMETER_START_SECTOR
+            && !parameter.starts_with(b"PARM")
+        {
+            continue;
+        }
+        if let Some(partitions) = parse_parameter_download_partitions(&parameter)
+            .map_err(|error| format!("Invalid parameter at LBA 0x{start_sector:08x}: {error}"))?
+        {
+            return Ok(partitions);
+        }
+    }
+
+    let mut error = "No GPT or Rockchip parameter partition table found".to_string();
+    if !read_errors.is_empty() {
+        error.push_str(&format!(": {}", read_errors.join("; ")));
+    }
+    Err(error)
 }
 
 fn image_for_download(
@@ -1813,13 +1913,23 @@ async fn write_gpt_bytes(
     Ok(())
 }
 
-fn create_upgrade_temp_dir() -> Result<PathBuf, String> {
+fn create_upgrade_temp_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let cache_root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| format!("Resolve application cache directory failed: {error}"))?
+        .join(UPGRADE_CACHE_DIRECTORY);
+    create_upgrade_temp_dir_in(&cache_root)
+}
+
+fn create_upgrade_temp_dir_in(cache_root: &Path) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(cache_root)
+        .map_err(|error| format!("Create upgrade cache directory failed: {error}"))?;
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos();
-    let path =
-        std::env::temp_dir().join(format!("rkdevtool-upgrade-{}-{nonce}", std::process::id()));
+    let path = cache_root.join(format!("upgrade-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&path).map_err(|e| format!("Create upgrade temp directory failed: {e}"))?;
     Ok(path)
 }
@@ -1909,7 +2019,7 @@ pub async fn upgrade_firmware(
     devices::ensure_backend_not_busy(state.inner())?;
     devices::set_backend_busy(state.inner(), true)?;
 
-    let temp_dir = match create_upgrade_temp_dir() {
+    let temp_dir = match create_upgrade_temp_dir(&app) {
         Ok(path) => path,
         Err(err) => {
             let _ = devices::set_backend_busy(state.inner(), false);
@@ -2711,6 +2821,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn upgrade_temp_dir_is_created_under_the_managed_cache_root() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "rkdevtool-upgrade-cache-test-{}-{unique}",
+            std::process::id()
+        ));
+
+        let directory = create_upgrade_temp_dir_in(&root).unwrap();
+
+        assert_eq!(directory.parent(), Some(root.as_path()));
+        assert!(directory.is_dir());
+        assert!(directory
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("upgrade-")));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn firmware_progress_emits_only_when_the_percent_changes() {
         assert!(should_emit_progress(None, 0));
         assert!(!should_emit_progress(Some(75), 75));
@@ -3092,5 +3224,71 @@ mod tests {
         assert_eq!(partitions[1].name, "boot");
         assert_eq!(partitions[1].start_sector, 0xc800);
         assert_eq!(partitions[1].sector_count, Some(0x14000));
+    }
+
+    #[test]
+    fn rejects_gpt_partitions_with_reversed_sector_ranges() {
+        let parameter = b"TYPE: GPT\nCMDLINE:mtdparts=rk29xxnand:0x2000@0x4000(uboot)\n";
+        let source = parse_gpt_parameter(parameter).unwrap().unwrap();
+        let tables = build_gpt_tables(&source, 0x0080_0000).unwrap();
+        let mut entries = tables.primary[SECTOR_SIZE * 2..].to_vec();
+        entries[40..48].copy_from_slice(&0x3fffu64.to_le_bytes());
+
+        assert_eq!(
+            parse_gpt_download_partitions(
+                &tables.primary[SECTOR_SIZE..SECTOR_SIZE * 2],
+                &entries,
+            ),
+            Err("GPT partition has an invalid sector range".to_string())
+        );
+    }
+
+    #[test]
+    fn gpt_partition_names_ignore_extended_entry_data() {
+        let mut header = vec![0u8; SECTOR_SIZE];
+        header[..8].copy_from_slice(b"EFI PART");
+        header[12..16].copy_from_slice(&92u32.to_le_bytes());
+        header[72..80].copy_from_slice(&2u64.to_le_bytes());
+        header[80..84].copy_from_slice(&1u32.to_le_bytes());
+        header[84..88].copy_from_slice(&256u32.to_le_bytes());
+        let mut entry = vec![0u8; 256];
+        entry[0] = 1;
+        entry[32..40].copy_from_slice(&0x4000u64.to_le_bytes());
+        entry[40..48].copy_from_slice(&0x5fffu64.to_le_bytes());
+        for word in entry[56..128].chunks_exact_mut(2) {
+            word.copy_from_slice(&u16::from(b'a').to_le_bytes());
+        }
+        entry[128..].fill(0xff);
+
+        let partitions = parse_gpt_download_partitions(&header, &entry)
+            .unwrap()
+            .unwrap();
+        assert_eq!(partitions[0].name, "a".repeat(36));
+    }
+
+    #[test]
+    fn reads_parameter_partitions_with_grow_and_length_prefixed_parm() {
+        let payload = b"CMDLINE:mtdparts=rk29xxnand:0x2000@0x4000(uboot),-@0x6000(custom-data:grow)\n";
+        let mut parameter = b"PARM".to_vec();
+        parameter.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        parameter.extend_from_slice(payload);
+        // Stale bytes after the declared payload must not create extra rows.
+        parameter.extend_from_slice(b"CMDLINE:mtdparts=rk29xxnand:0x1000@0x8000(stale)\n");
+
+        let partitions = parse_parameter_download_partitions(&parameter)
+            .unwrap()
+            .unwrap();
+        assert_eq!(partitions.len(), 2);
+        assert_eq!(partitions[0].name, "uboot");
+        assert_eq!(partitions[0].start_sector, 0x4000);
+        assert_eq!(partitions[1].name, "custom-data");
+        assert_eq!(partitions[1].start_sector, 0x6000);
+        assert_eq!(partitions[1].sector_count, None);
+    }
+
+    #[test]
+    fn rejects_truncated_parameter_payload() {
+        let parameter = b"PARM\xff\xff\xff\x7fCMDLINE:mtdparts=rk29xxnand:0x2000@0x4000(uboot)";
+        assert!(parse_parameter_download_partitions(parameter).is_err());
     }
 }

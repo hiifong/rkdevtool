@@ -1,4 +1,7 @@
 import { inject, provide, ref, type InjectionKey } from "vue";
+import { useDownloadForm } from "./useDownloadForm";
+import { useAdvancedForm } from "./useAdvancedForm";
+import { useUpgradeForm } from "./useUpgradeForm";
 import type { DeviceState, LogEntry, LogLevel, PageId } from "../types/app";
 import type { RockusbDevice, ToolInfo } from "../types/tool";
 
@@ -31,6 +34,9 @@ function shouldUpdateLastLine(last: LogEntry, next: string, update: boolean): bo
 let logId = 0;
 
 function createAppState() {
+  const downloadForm = useDownloadForm();
+  const advancedForm = useAdvancedForm();
+  const upgradeForm = useUpgradeForm();
   const activePage = ref<PageId>("download");
   const deviceState = ref<DeviceState>("disconnected");
   const devices = ref<RockusbDevice[]>([]);
@@ -94,6 +100,9 @@ function createAppState() {
   }
 
   return {
+    downloadForm,
+    advancedForm,
+    upgradeForm,
     activePage,
     deviceState,
     devices,

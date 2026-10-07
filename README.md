@@ -37,14 +37,14 @@ A modern alternative to the official Windows-only RKDevTool, with real-time logs
 - Auto-poll RockUSB devices; status bar shows Maskrom / Loader mode
 - Live log panel with in-place progress updates (`Download Image... (xx%)`)
 - Switch target device from the status bar when multiple devices are connected
+- After downloading a Loader, use **Partition table** to fill the download form from the device's GPT or Rockchip parameter. Existing image paths are preserved, and the form is saved locally.
 
 ### Rust / RockUSB migration status
 
-Most day-to-day operations now use the Rust RockUSB backend directly: device discovery, Loader/Boot download, Download Image, firmware unpacking and partition flashing, Flash/Chip/Capability reads, device testing and reset, Maskrom entry, storage switching, erase, and image export.
+Most day-to-day operations now use the Rust RockUSB backend directly: device discovery, Loader/Boot download, Download Image, firmware unpacking and partition flashing, device partition table reads, Flash/Chip/Capability reads, device testing and reset, Maskrom entry, storage switching, erase, and image export.
 
 Only a small compatibility surface still launches the official `upgrade_tool`:
 
-- Read the device partition list (`PL`)
 - Clear serial number (`SN`)
 - Detect secure mode (`RSM`)
 - Export serial log (`RCL`)
@@ -178,14 +178,14 @@ macOS signing & notarization secrets:
 - 自动轮询 RockUSB 设备，状态栏显示当前连接模式（Maskrom / Loader）
 - 实时日志面板，进度行原地刷新（`Download Image... (xx%)`）
 - 多设备时可在状态栏切换目标设备
+- 下载 Loader 后，点击**设备分区表**可将设备 GPT 或 Rockchip parameter 中的分区填入下载表单，保留已有镜像路径，并自动保存表单配置。
 
 ### Rust / RockUSB 迁移进度
 
-目前绝大多数日常操作已由 Rust RockUSB 后端直接完成：设备发现、Loader / Boot 下载、下载镜像、固件解包与分区写入、Flash / 芯片 / Capability 信息读取、设备测试与重启、进入 Maskrom、切换存储、擦除和导出镜像。
+目前绝大多数日常操作已由 Rust RockUSB 后端直接完成：设备发现、Loader / Boot 下载、下载镜像、固件解包与分区写入、设备分区表读取、Flash / 芯片 / Capability 信息读取、设备测试与重启、进入 Maskrom、切换存储、擦除和导出镜像。
 
 当前仅有少量兼容功能仍会调用官方 `upgrade_tool`：
 
-- 读取设备分区表（`PL`）
 - 清空序列号（`SN`）
 - 检测安全模式（`RSM`）
 - 导出串口日志（`RCL`）

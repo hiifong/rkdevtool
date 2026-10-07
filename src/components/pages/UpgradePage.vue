@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import AppButton from "../ui/AppButton.vue";
 import PathField from "../ui/PathField.vue";
 import { useAppState } from "../../composables/useAppState";
@@ -8,46 +8,47 @@ import { pickFile } from "../../composables/useFilePicker";
 import { useI18n } from "../../i18n";
 import { logText } from "../../i18n/logText";
 
-const { appendLog, busy, deviceState } = useAppState();
+const { appendLog, busy, deviceState, upgradeForm } = useAppState();
+const { firmwarePath } = upgradeForm;
 const { run } = useToolCommand();
 const { t } = useI18n();
 
-const firmwarePath = ref("");
 const firmwareVersion = ref("");
 const loaderVersion = ref("");
 const chipInfo = ref("");
+let firmwareInfoRequest = 0;
+let chipInfoRequest = 0;
 
-async function refreshFirmwareInfo() {
+async function refreshFirmwareInfo(reportErrors = true) {
+  const request = ++firmwareInfoRequest;
+  const chipRequest = ++chipInfoRequest;
   const path = firmwarePath.value.trim();
-  if (!path) {
-    firmwareVersion.value = "";
-    loaderVersion.value = "";
-    chipInfo.value = "";
-    return;
-  }
+  firmwareVersion.value = "";
+  loaderVersion.value = "";
+  chipInfo.value = "";
+  if (!path) return;
 
   try {
     const info = await toolApi.parseFirmware(path);
+    if (request !== firmwareInfoRequest || path !== firmwarePath.value.trim()) return;
     firmwareVersion.value = info.firmware_version || "";
     loaderVersion.value = info.loader_version || "";
-    chipInfo.value = info.chip_family || "";
+    if (chipRequest === chipInfoRequest) chipInfo.value = info.chip_family || "";
   } catch (err) {
-    firmwareVersion.value = "";
-    loaderVersion.value = "";
-    chipInfo.value = "";
-    appendLog(String(err), "error");
+    if (request !== firmwareInfoRequest || path !== firmwarePath.value.trim()) return;
+    if (reportErrors) appendLog(String(err), "error");
   }
 }
+
+watch(firmwarePath, () => refreshFirmwareInfo(false), { immediate: true });
 
 async function browseFirmware() {
   const path = await pickFile(t("upgrade.pickFirmware"));
-  if (path) {
-    firmwarePath.value = path;
-    await refreshFirmwareInfo();
-  }
+  if (path) firmwarePath.value = path;
 }
 
 async function refreshChipInfo() {
+  const request = ++chipInfoRequest;
   if (deviceState.value !== "loader") {
     chipInfo.value = t("upgrade.maskromChipHint");
     return;
@@ -55,10 +56,11 @@ async function refreshChipInfo() {
 
   try {
     const output = await toolApi.readChipInfo();
+    if (request !== chipInfoRequest) return;
     const text = output.trim();
     chipInfo.value = text.includes("Fail") ? t("upgrade.chipReadFailed") : text;
   } catch {
-    chipInfo.value = t("upgrade.chipReadError");
+    if (request === chipInfoRequest) chipInfo.value = t("upgrade.chipReadError");
   }
 }
 
@@ -79,9 +81,12 @@ async function upgrade() {
 onMounted(() => {
   if (deviceState.value === "loader") {
     refreshChipInfo();
-  } else {
-    chipInfo.value = "";
   }
+});
+
+onUnmounted(() => {
+  ++firmwareInfoRequest;
+  ++chipInfoRequest;
 });
 </script>
 
@@ -113,7 +118,7 @@ onMounted(() => {
       </div>
       <div class="info-card__actions">
         <AppButton size="sm" :disabled="busy" @click="refreshChipInfo">{{ t("upgrade.refreshChipInfo") }}</AppButton>
-        <AppButton size="sm" :disabled="busy" @click="refreshFirmwareInfo">{{ t("upgrade.refreshFirmwareInfo") }}</AppButton>
+        <AppButton size="sm" :disabled="busy" @click="refreshFirmwareInfo()">{{ t("upgrade.refreshFirmwareInfo") }}</AppButton>
       </div>
     </div>
   </div>
