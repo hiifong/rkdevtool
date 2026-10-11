@@ -36,6 +36,7 @@ export default {
     installing: "Installing…",
     upToDate: "You are already on the latest version.",
     available: "Version v{version} is available. Download and install now?",
+    releaseNotes: "Release notes",
     install: "Update",
     later: "Later",
     failed: "Update failed: {error}",

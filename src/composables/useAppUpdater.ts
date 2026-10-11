@@ -1,7 +1,7 @@
-import { ref } from "vue";
-import { check } from "@tauri-apps/plugin-updater";
+import { onUnmounted, ref } from "vue";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { ask, message } from "@tauri-apps/plugin-dialog";
+import { message } from "@tauri-apps/plugin-dialog";
 import { useI18n } from "../i18n";
 
 export function useAppUpdater() {
@@ -9,15 +9,44 @@ export function useAppUpdater() {
   const checking = ref(false);
   const updating = ref(false);
   const progressText = ref("");
+  const updatePrompt = ref<{ version: string; notes: string } | null>(null);
+  let pendingConfirmation: ((confirmed: boolean) => void) | null = null;
+  let activeUpdate: Update | null = null;
+  let disposed = false;
+
+  function respondToUpdate(confirmed: boolean) {
+    const resolve = pendingConfirmation;
+    pendingConfirmation = null;
+    resolve?.(confirmed);
+  }
+
+  async function closeUpdate() {
+    const update = activeUpdate;
+    activeUpdate = null;
+    try {
+      await update?.close();
+    } catch {
+      // Resource cleanup must not replace an update or installation error.
+    }
+  }
+
+  onUnmounted(() => {
+    disposed = true;
+    respondToUpdate(false);
+    void closeUpdate();
+  });
 
   async function checkForUpdates({ silent = false }: { silent?: boolean } = {}) {
-    if (checking.value || updating.value) return;
+    if (disposed || checking.value || updating.value) return;
 
     checking.value = true;
     progressText.value = "";
+    let userConfirmed = false;
 
     try {
       const update = await check();
+      activeUpdate = update;
+      if (disposed) return;
       if (!update) {
         if (!silent) {
           await message(t("update.upToDate"), {
@@ -28,24 +57,22 @@ export function useAppUpdater() {
         return;
       }
 
-      const notes = update.body?.trim();
-      const detail = notes
-        ? `${t("update.available", { version: update.version })}\n\n${notes}`
-        : t("update.available", { version: update.version });
-
-      const confirmed = await ask(detail, {
-        title: t("update.title"),
-        kind: "info",
-        okLabel: t("update.install"),
-        cancelLabel: t("update.later"),
+      userConfirmed = await new Promise<boolean>((resolve) => {
+        pendingConfirmation = resolve;
+        updatePrompt.value = {
+          version: update.version,
+          notes: update.body?.trim() ?? "",
+        };
       });
-      if (!confirmed) return;
+      updatePrompt.value = null;
+      if (!userConfirmed || disposed) return;
 
       updating.value = true;
       let downloaded = 0;
       let contentLength = 0;
 
       await update.downloadAndInstall((event) => {
+        if (disposed) return;
         switch (event.event) {
           case "Started":
             contentLength = event.data.contentLength ?? 0;
@@ -70,9 +97,9 @@ export function useAppUpdater() {
         }
       });
 
-      await relaunch();
+      if (!disposed) await relaunch();
     } catch (error) {
-      if (!silent) {
+      if (!disposed && (!silent || userConfirmed)) {
         const detail = error instanceof Error ? error.message : String(error);
         await message(t("update.failed", { error: detail }), {
           title: t("update.title"),
@@ -80,8 +107,12 @@ export function useAppUpdater() {
         });
       }
     } finally {
+      respondToUpdate(false);
+      updatePrompt.value = null;
+      const closing = closeUpdate();
       checking.value = false;
       updating.value = false;
+      await closing;
     }
   }
 
@@ -89,6 +120,8 @@ export function useAppUpdater() {
     checking,
     updating,
     progressText,
+    updatePrompt,
+    respondToUpdate,
     checkForUpdates,
   };
 }

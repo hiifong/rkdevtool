@@ -36,6 +36,7 @@ export default {
     installing: "正在安装…",
     upToDate: "当前已是最新版本。",
     available: "发现新版本 v{version}，是否立即下载并安装？",
+    releaseNotes: "更新日志",
     install: "更新",
     later: "稍后",
     failed: "更新失败：{error}",

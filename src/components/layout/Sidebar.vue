@@ -7,6 +7,7 @@ import type { Locale } from "../../types/locale";
 import { GITHUB_REPO_URL } from "../../constants/app";
 import { useAppUpdater } from "../../composables/useAppUpdater";
 import { useI18n } from "../../i18n";
+import UpdateDialog from "../ui/UpdateDialog.vue";
 import packageJson from "../../../package.json";
 
 defineProps<{
@@ -16,8 +17,16 @@ defineProps<{
 const emit = defineEmits<{ navigate: [page: PageId] }>();
 
 const { locale, setLocale, t } = useI18n();
-const { checking, updating, progressText, checkForUpdates } = useAppUpdater();
+const {
+  checking,
+  updating,
+  progressText,
+  updatePrompt,
+  respondToUpdate,
+  checkForUpdates,
+} = useAppUpdater();
 const appVersion = ref(`v${packageJson.version}`);
+const updateButton = ref<HTMLButtonElement | null>(null);
 
 const navItems = computed(() => [
   { id: "download" as const, label: t("nav.download") },
@@ -98,6 +107,7 @@ onMounted(async () => {
       </div>
       <div class="sidebar__version">{{ appVersion }}</div>
       <button
+        ref="updateButton"
         type="button"
         class="sidebar__update"
         :disabled="checking || updating"
@@ -120,6 +130,14 @@ onMounted(async () => {
       </a>
     </div>
   </aside>
+  <UpdateDialog
+    v-if="updatePrompt"
+    :version="updatePrompt.version"
+    :notes="updatePrompt.notes"
+    :return-focus="updateButton"
+    @confirm="respondToUpdate(true)"
+    @cancel="respondToUpdate(false)"
+  />
 </template>
 
 <style scoped>

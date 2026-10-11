@@ -50,6 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          token: ${{ secrets.CHECKOUT_TOKEN }}
           fetch-depth: 0
           submodules: true
 
